@@ -6,3 +6,4 @@
 *.png
 data
 models
+.RDataTmp

@@ -34,6 +34,11 @@ if(!require(grid)) install.packages("grid")
 if(!require(caret)) install.packages("caret")
 if(!require(corrplot)) install.packages("corrplot")
 if(!require(xgboost)) install.packages("xgboost")
+if(!require(imbalance)) install.packages("imbalance")
+if(!require(UBL)) install.packages("UBL")
+if(!require(ROSE)) install.packages("ROSE")
+if(!require(smotefamily)) install.packages("smotefamily")
+
 
 
 # Load libraries
@@ -44,12 +49,16 @@ library(grid)
 library(caret)
 library(corrplot)
 library(xgboost)
+library(imbalance)
+library(UBL)
+library(ROSE)
+library(smotefamily)
 
 # Set working directory to source file location
 setwd(dirname(getActiveDocumentContext()$path))
 
 # Program controls
-RETRAIN <- T       # TRUE: models will be retrained; FALSE: trained models will be loaded from files
+RETRAIN <- F       # TRUE: models will be retrained; FALSE: trained models will be loaded from files
 PRINT_DEBUG <- T   # TRUE: debug information and training functions output will be printed out to the console; 
 #                    FALSE: no or only minimum of debug information will be printed out to the console
 
@@ -120,6 +129,27 @@ df <- cbind(x_train, y_train)
 
 
 ###########################################################
+#       Functions
+##########################################################
+
+plot_confusion <- function(truth, pred){
+  xtab <- table(pred, truth)
+  cm <- confusionMatrix(xtab)
+  plt <- as.data.frame(cm$table)
+  colnames(plt) <- c("Prediction", "Reference", "Freq")
+  plt$Prediction <- factor(plt$Prediction, levels=rev(levels(plt$Prediction)))
+  
+  ggplot(plt, aes(Prediction,Reference, fill= Freq)) +
+    geom_tile() + geom_text(aes(label=Freq)) +
+    scale_fill_gradient(low="white", high="#009194") +
+    labs(x = "Reference",y = "Prediction") +
+    scale_x_discrete(labels=levels(plt$Prediction)) +
+    scale_y_discrete(labels=rev(levels(plt$Prediction))) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1.0, hjust=1))
+}
+
+
+###########################################################
 #                         Analysis                        #
 ###########################################################
 
@@ -187,6 +217,66 @@ grid.arrange(plot_min, plot_max, plot_median, plot_mean, ncol=2)
 # remove unnecessary variables:
 rm(plot_max, plot_mean, plot_median, plot_min)
 
+# 
+# trying to balance
+imbalanceRatio(df, "Activity")
+#df_balanced <- racog(df, numInstances = 100, classAttr = "Activity")
+df_balanced <- RandOverClassif(Activity ~., df, C.perc = "balance")
+imbalanceRatio(df_balanced, "Activity")
+
+
+# distribution of outcomes in the training dataset
+df_balanced %>% group_by(Activity) %>% mutate(n = n()) %>%
+  ggplot(aes(Activity)) +
+  geom_bar() + 
+  xlab("Activity") + 
+  theme(axis.text.x=element_text(angle = -90, hjust = 0))
+
+
+# Undersampling+oversampling both
+
+df_balanced2 <- SMOTE(X = df[,1:561], target = df$Activity, K = 20)$data
+names(df_balanced2)[names(df_balanced2) == 'class'] <- 'Activity'
+
+df_balanced2 <- SmoteClassif(Activity ~., df, C.perc = "balance")
+
+df_balanced2 %>% group_by(Activity) %>% mutate(n = n()) %>%
+  ggplot(aes(Activity)) +
+  geom_bar() + 
+  xlab("Activity") + 
+  theme(axis.text.x=element_text(angle = -90, hjust = 0))
+
+
+#Compare three df by lda with 10-fold cross-val
+control <- trainControl(method="cv", number=10, verbose = PRINT_DEBUG)
+imbalanced_model <- train(Activity ~ ., method = "lda", data = df, trControl = control)
+oversampled_model <- train(Activity ~ ., method = "lda", data = df_balanced)
+SMOTE_model <- train(Activity ~ ., method = "lda", data = df_balanced2)
+
+# Test with test data (to create another)
+
+imbalance_test <- predict(imbalanced_model, x_test)
+plot_confusion(factor(imbalance_test), factor(y_test$Activity))
+
+oversampled_test <- predict(oversampled_model, x_test)
+plot_confusion(factor(oversampled_test), factor(y_test$Activity))
+
+SMOTE_test <- predict(SMOTE_model, x_test)
+plot_confusion(factor(SMOTE_test), factor(y_test$Activity))
+
+
+# stats
+xtab <- table(factor(imbalance_test), factor(y_test$Activity))
+cm_unbalanced <- confusionMatrix(xtab)
+cm_unbalanced$overall
+xtab <- table(factor(oversampled_test), factor(y_test$Activity))
+cm_oversampled <- confusionMatrix(xtab)
+cm_oversampled$overall
+xtab <- table(factor(SMOTE_test), factor(y_test$Activity))
+cm_SMOTE <- confusionMatrix(xtab)
+cm_SMOTE$overall
+
+
 # Dimension reduction
 
 
@@ -228,26 +318,33 @@ rm(plot_max, plot_mean, plot_median, plot_min)
 
 
 
-
-# models <- c("lda", "naive_bayes", "svmLinear", "knn", "gamLoess", "multinom", "qda", "rf", "adaboost")
-models <- c("lda", "naive_bayes", "svmLinear", "knn")
-
-fits <- lapply(models, function(model){ 
-  print(model)
-  time_start <- unclass(Sys.time())
-  fit <- train(Activity ~ ., method = model, data = df)
-  time_end <- unclass(Sys.time())
-  time <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
-  c(fit, time)
-}) 
-
-names(fits) <- models
-
-
-saveRDS(fits, "./models/ensemble.rds")
+if (RETRAIN) {
+  # models <- c("lda", "naive_bayes", "svmLinear", "knn", "gamLoess", "multinom", "qda", "rf", "adaboost")
+  models <- c("lda", "naive_bayes", "svmLinear", "knn")
+  
+  fits <- lapply(models, function(model){ 
+    print(model)
+    time_start <- unclass(Sys.time())
+    fit <- train(Activity ~ ., method = model, data = df_balanced)
+    time_end <- unclass(Sys.time())
+    time <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+    c(fit, time)
+  }) 
+  
+  names(fits) <- models
+  
+  
+  saveRDS(fits, "./models/ensemble_imba.rds")
+} else {
+    if (!file.exists("./models//ensemble_imba.rds")) {
+      stop("File not found. Rerun code with RETRAIN = TRUE")
+    } else {
+      fits <- readRDS("./models//ensemble_imba.rds")
+    }
+  }
 
 # https://journalofbigdata.springeropen.com/articles/10.1186/s40537-020-00349-y
-# 
+# https://towardsdatascience.com/machine-learning-multiclass-classification-with-imbalanced-data-set-29f6a177c1a
 # 
 # # try Multinomial Logistic Regression on full dataset
 # df_ttt <- df[c(1:10, 562)]
@@ -284,22 +381,8 @@ saveRDS(fits, "./models/ensemble.rds")
 # 
 # print(cm_full)
 # 
-# plot_confusion <- function(truth, pred){
-#   xtab <- table(pred, truth)
-#   cm <- confusionMatrix(xtab)
-#   plt <- as.data.frame(cm$table)
-#   colnames(plt) <- c("Prediction", "Reference", "Freq")
-#   plt$Prediction <- factor(plt$Prediction, levels=rev(levels(plt$Prediction)))
-#   
-#   ggplot(plt, aes(Prediction,Reference, fill= Freq)) +
-#     geom_tile() + geom_text(aes(label=Freq)) +
-#     scale_fill_gradient(low="white", high="#009194") +
-#     labs(x = "Reference",y = "Prediction") +
-#     scale_x_discrete(labels=levels(plt$Prediction)) +
-#     scale_y_discrete(labels=rev(levels(plt$Prediction))) +
-#     theme(axis.text.x = element_text(angle = 45, vjust = 1.0, hjust=1))
-# }
-# 
+
+
 # 
 # 
 # plot_confusion(factor(y_test$Activity),factor(y_test$Activity))
