@@ -147,7 +147,7 @@ df %>% group_by(Activity) %>% mutate(n = n()) %>%
 
 # dataset is unbalanced, less data points for transitions between activities compare to continuous activities  
 # Will take it into account when build a model
-# Metric will be F1-score
+# Metric will be Cohen's kappa coefficient
 
 # All features statistics summary 
 features_stat <- as.data.frame(df %>% select(-Activity) %>% summary()) %>% select(-Var1)
@@ -191,192 +191,226 @@ rm(plot_max, plot_mean, plot_median, plot_min)
 
 
 
-# calculate correlation matrix
-correlationMatrix <- cor(x_train)
-# summarize the correlation matrix
-print(correlationMatrix)
-corrplot(correlationMatrix, method = "color", tl.pos='n')
-# find attributes that are highly corrected (ideally >0.75)
-highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.9)
-highlyCorrelated2 <- findCorrelation(correlationMatrix, cutoff=0.75)
-# print indexes of highly correlated attributes
-print(highlyCorrelated)
-print(highlyCorrelated2)
+# # calculate correlation matrix
+# correlationMatrix <- cor(x_train)
+# # summarize the correlation matrix
+# print(correlationMatrix)
+# corrplot(correlationMatrix, method = "color", tl.pos='n')
+# # find attributes that are highly corrected (ideally >0.75)
+# highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.9)
+# highlyCorrelated2 <- findCorrelation(correlationMatrix, cutoff=0.75)
+# # print indexes of highly correlated attributes
+# print(highlyCorrelated)
+# print(highlyCorrelated2)
+# 
+# # remove highly correlated features
+# df_reduced <- df %>% select(-all_of(highlyCorrelated))
+# df_reduced2 <- df %>% select(-all_of(highlyCorrelated2))
+# 
+# corrplot(cor(df_reduced %>% select(-Activity)), method = "color", tl.pos='n')
+# 
+# # remove unnecessary variables:
+# rm(correlationMatrix, highlyCorrelated)
+# 
+# # Model building
+# # Metric will kappa-value, because our dataset is imbalanced 
 
-# remove highly correlated features
-df_reduced <- df %>% select(-all_of(highlyCorrelated))
-df_reduced2 <- df %>% select(-all_of(highlyCorrelated2))
 
-corrplot(cor(df_reduced %>% select(-Activity)), method = "color", tl.pos='n')
 
-# remove unnecessary variables:
-rm(correlationMatrix, highlyCorrelated)
 
-# Model building
-# Metric will kappa-value, because our dataset is imbalanced 
 
-# try Multinomial Logistic Regression on full dataset
-df_ttt <- df[c(1:10, 562)]
+#df_ttt <- df %>% sample_n(500)
 
-if (RETRAIN) {
-  control <- trainControl(method="cv", number=10, verbose = PRINT_DEBUG)
+#fit <- train(Activity ~ ., method = "gamLoess", data = df)
+#df.cols <- df[, 1:ncol(df)-1]
+
+#fit <- train(x = df.cols, y = df$Activity, method = "rf")
+
+
+
+
+# models <- c("lda", "naive_bayes", "svmLinear", "knn", "gamLoess", "multinom", "qda", "rf", "adaboost")
+models <- c("lda", "naive_bayes", "svmLinear", "knn")
+
+fits <- lapply(models, function(model){ 
+  print(model)
   time_start <- unclass(Sys.time())
-  model <- train(Activity~., data = df_ttt, method="multinom", MaxNWts = 10000, metric = "Kappa", trControl = control)
+  fit <- train(Activity ~ ., method = model, data = df)
   time_end <- unclass(Sys.time())
-  MLR_full_time <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
-  if (PRINT_DEBUG) {print(paste("Time for first MLR is: ", ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))))}
-  # If "models" folder is not exist, create it
-  if (!dir.exists("./models")) {
-    dir.create("./models")
-  }
-  saveRDS(model, "./models//MLR_full_model.rds")
-} else {
-  if (!file.exists("./models//MLR_full_model.rds")) {
-    stop("File not found. Rerun code with RETRAIN = TRUE")
-  } else {
-    model <- readRDS("./models//MLR_full_model.rds")
-  }
-}
+  time <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+  c(fit, time)
+}) 
 
-$
+names(fits) <- models
 
 
-truth <- factor(y_test$Activity)
-pred <- predict(model, newdata = x_test)
+saveRDS(fits, "./models/ensemble.rds")
 
-xtab <- table(pred, truth)
-cm_full <- confusionMatrix(xtab)
-
-
-print(cm_full)
-
-plot_confusion <- function(truth, pred){
-  xtab <- table(pred, truth)
-  cm <- confusionMatrix(xtab)
-  plt <- as.data.frame(cm$table)
-  colnames(plt) <- c("Prediction", "Reference", "Freq")
-  plt$Prediction <- factor(plt$Prediction, levels=rev(levels(plt$Prediction)))
-  
-  ggplot(plt, aes(Prediction,Reference, fill= Freq)) +
-    geom_tile() + geom_text(aes(label=Freq)) +
-    scale_fill_gradient(low="white", high="#009194") +
-    labs(x = "Reference",y = "Prediction") +
-    scale_x_discrete(labels=levels(plt$Prediction)) +
-    scale_y_discrete(labels=rev(levels(plt$Prediction))) +
-    theme(axis.text.x = element_text(angle = 45, vjust = 1.0, hjust=1))
-}
-
-
-
-plot_confusion(factor(y_test$Activity),factor(y_test$Activity))
-
-xtab <- table(factor(y_test$Activity),factor(y_test$Activity))
-cm <- confusionMatrix(xtab, mode = "everything")
-
-
-
-# try Multinomial Logistic Regression on the reduced  1 dataset
-if (RETRAIN) {
-  control <- trainControl(method="cv", number=3, verbose = PRINT_DEBUG)
-  time_start <- unclass(Sys.time())
-  model <- train(Activity~., data = df_reduced, method="multinom", MaxNWts = 10000, trControl = control)
-  time_end <- unclass(Sys.time())
-  MLR_reduced1_time <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
-
-  if (PRINT_DEBUG) {print(paste("Time for first MLR is: ", ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))))}
-  # If "models" folder is not exist, create it
-  if (!dir.exists("./models")) {
-    dir.create("./models")
-  }
-  saveRDS(model, "./models//MLR_reduced1_model.rds")
-} else {
-  if (!file.exists("./models//MLR_reduced1_model.rds")) {
-    stop("File not found. Rerun code with RETRAIN = TRUE")
-  } else {
-    model <- readRDS("./models//MLR_reduced1_model.rds")
-  }
-}
-
-
-
-truth <- factor(y_test$Activity)
-pred <- predict(model, newdata = x_test)
-
-xtab <- table(pred, truth)
-cm_reduced1 <- confusionMatrix(xtab)
-
-
-print(cm_reduced1)
-
-
-# try Multinomial Logistic Regression on the reduced  2 dataset
-if (RETRAIN) {
-  control <- trainControl(method="cv", number=3, verbose = PRINT_DEBUG)
-  time_start <- unclass(Sys.time())
-  model <- train(Activity~., data = df_reduced2, method="multinom", MaxNWts = 10000, trControl = control)
-  time_end <- unclass(Sys.time())
-  MLR_reduced2_time <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
-  
-  if (PRINT_DEBUG) {print(paste("Time for first MLR is: ", ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))))}
-  # If "models" folder is not exist, create it
-  if (!dir.exists("./models")) {
-    dir.create("./models")
-  }
-  saveRDS(model, "./models//MLR_reduced2_model.rds")
-} else {
-  if (!file.exists("./models//MLR_reduced2_model.rds")) {
-    stop("File not found. Rerun code with RETRAIN = TRUE")
-  } else {
-    model <- readRDS("./models//MLR_reduced2_model.rds")
-  }
-}
-
-
-truth <- factor(y_test$Activity)
-pred <- predict(model, newdata = x_test)
-
-xtab <- table(pred, truth)
-cm_reduced2 <- confusionMatrix(xtab)
-
-
-print(cm_reduced2)
-
-
-
-# try QDA
-train_qda <- train(Activity ~., method = "lda", data = df)
-# Obtain predictors and accuracy
-truth <- factor(y_test$Activity)
-pred <- predict(train_qda, newdata = x_test)
-
-xtab <- table(pred, truth)
-cm <- confusionMatrix(xtab)
-
-
-print(cm)
-
-
-# try gBoost
-control <- trainControl(method="cv", number=10, verbose = PRINT_DEBUG)
-train_xgb <- train(Activity ~., method = "xgbTree", data = df, trControl = control)
-# Obtain predictors and accuracy
-truth <- factor(y_test$Activity)
-pred <- predict(train_xgb, newdata = x_test)
-
-xtab <- table(pred, truth)
-cm <- confusionMatrix(xtab)
-
-
-print(cm)
-# Best tuning parameter
-train_xgb$bestTune
-
-
+# https://journalofbigdata.springeropen.com/articles/10.1186/s40537-020-00349-y
+# 
+# 
+# # try Multinomial Logistic Regression on full dataset
+# df_ttt <- df[c(1:10, 562)]
+# 
+# if (RETRAIN) {
+#   control <- trainControl(method="cv", number=10, verbose = PRINT_DEBUG)
+#   time_start <- unclass(Sys.time())
+#   model <- train(Activity~., data = df_ttt, method="multinom", MaxNWts = 10000, metric = "Kappa", trControl = control)
+#   time_end <- unclass(Sys.time())
+#   MLR_full_time <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+#   if (PRINT_DEBUG) {print(paste("Time for first MLR is: ", MLR_full_time))}
+#   # If "models" folder is not exist, create it
+#   if (!dir.exists("./models")) {
+#     dir.create("./models")
+#   }
+#   saveRDS(model, "./models//MLR_full_model.rds")
+# } else {
+#   if (!file.exists("./models//MLR_full_model.rds")) {
+#     stop("File not found. Rerun code with RETRAIN = TRUE")
+#   } else {
+#     model <- readRDS("./models//MLR_full_model.rds")
+#   }
+# }
+# 
+# $
+# 
+# 
 # truth <- factor(y_test$Activity)
 # pred <- predict(model, newdata = x_test)
+# 
+# xtab <- table(pred, truth)
+# cm_full <- confusionMatrix(xtab)
+# 
+# 
+# print(cm_full)
+# 
+# plot_confusion <- function(truth, pred){
+#   xtab <- table(pred, truth)
+#   cm <- confusionMatrix(xtab)
+#   plt <- as.data.frame(cm$table)
+#   colnames(plt) <- c("Prediction", "Reference", "Freq")
+#   plt$Prediction <- factor(plt$Prediction, levels=rev(levels(plt$Prediction)))
+#   
+#   ggplot(plt, aes(Prediction,Reference, fill= Freq)) +
+#     geom_tile() + geom_text(aes(label=Freq)) +
+#     scale_fill_gradient(low="white", high="#009194") +
+#     labs(x = "Reference",y = "Prediction") +
+#     scale_x_discrete(labels=levels(plt$Prediction)) +
+#     scale_y_discrete(labels=rev(levels(plt$Prediction))) +
+#     theme(axis.text.x = element_text(angle = 45, vjust = 1.0, hjust=1))
+# }
+# 
+# 
+# 
+# plot_confusion(factor(y_test$Activity),factor(y_test$Activity))
+# 
+# xtab <- table(factor(y_test$Activity),factor(y_test$Activity))
+# cm <- confusionMatrix(xtab, mode = "everything")
+# 
+# 
+# 
+# # try Multinomial Logistic Regression on the reduced  1 dataset
+# if (RETRAIN) {
+#   control <- trainControl(method="cv", number=3, verbose = PRINT_DEBUG)
+#   time_start <- unclass(Sys.time())
+#   model <- train(Activity~., data = df_reduced, method="multinom", MaxNWts = 10000, trControl = control)
+#   time_end <- unclass(Sys.time())
+#   MLR_reduced1_time <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+# 
+#   if (PRINT_DEBUG) {print(paste("Time for first MLR is: ", ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))))}
+#   # If "models" folder is not exist, create it
+#   if (!dir.exists("./models")) {
+#     dir.create("./models")
+#   }
+#   saveRDS(model, "./models//MLR_reduced1_model.rds")
+# } else {
+#   if (!file.exists("./models//MLR_reduced1_model.rds")) {
+#     stop("File not found. Rerun code with RETRAIN = TRUE")
+#   } else {
+#     model <- readRDS("./models//MLR_reduced1_model.rds")
+#   }
+# }
+# 
+# 
+# 
+# truth <- factor(y_test$Activity)
+# pred <- predict(model, newdata = x_test)
+# 
+# xtab <- table(pred, truth)
+# cm_reduced1 <- confusionMatrix(xtab)
+# 
+# 
+# print(cm_reduced1)
+# 
+# 
+# # try Multinomial Logistic Regression on the reduced  2 dataset
+# if (RETRAIN) {
+#   control <- trainControl(method="cv", number=3, verbose = PRINT_DEBUG)
+#   time_start <- unclass(Sys.time())
+#   model <- train(Activity~., data = df_reduced2, method="multinom", MaxNWts = 10000, trControl = control)
+#   time_end <- unclass(Sys.time())
+#   MLR_reduced2_time <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+#   
+#   if (PRINT_DEBUG) {print(paste("Time for first MLR is: ", ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))))}
+#   # If "models" folder is not exist, create it
+#   if (!dir.exists("./models")) {
+#     dir.create("./models")
+#   }
+#   saveRDS(model, "./models//MLR_reduced2_model.rds")
+# } else {
+#   if (!file.exists("./models//MLR_reduced2_model.rds")) {
+#     stop("File not found. Rerun code with RETRAIN = TRUE")
+#   } else {
+#     model <- readRDS("./models//MLR_reduced2_model.rds")
+#   }
+# }
+# 
+# 
+# truth <- factor(y_test$Activity)
+# pred <- predict(model, newdata = x_test)
+# 
+# xtab <- table(pred, truth)
+# cm_reduced2 <- confusionMatrix(xtab)
+# 
+# 
+# print(cm_reduced2)
+# 
+# 
+# 
+# # try QDA
+# train_qda <- train(Activity ~., method = "lda", data = df)
+# # Obtain predictors and accuracy
+# truth <- factor(y_test$Activity)
+# pred <- predict(train_qda, newdata = x_test)
 # 
 # xtab <- table(pred, truth)
 # cm <- confusionMatrix(xtab)
 # 
 # 
 # print(cm)
+# 
+# 
+# # try gBoost
+# control <- trainControl(method="cv", number=10, verbose = PRINT_DEBUG)
+# train_xgb <- train(Activity ~., method = "xgbTree", data = df, trControl = control)
+# # Obtain predictors and accuracy
+# truth <- factor(y_test$Activity)
+# pred <- predict(train_xgb, newdata = x_test)
+# 
+# xtab <- table(pred, truth)
+# cm <- confusionMatrix(xtab)
+# 
+# 
+# print(cm)
+# # Best tuning parameter
+# train_xgb$bestTune
+# 
+# 
+# # truth <- factor(y_test$Activity)
+# # pred <- predict(model, newdata = x_test)
+# # 
+# # xtab <- table(pred, truth)
+# # cm <- confusionMatrix(xtab)
+# # 
+# # 
+# # print(cm)
