@@ -132,7 +132,8 @@ df <- cbind(x_train, y_train)
 #       Functions
 ##########################################################
 
-plot_confusion <- function(truth, pred){
+plot_confusion <- function(truth, pred, name = "Confusion matrix"){
+
   xtab <- table(pred, truth)
   cm <- confusionMatrix(xtab)
   plt <- as.data.frame(cm$table)
@@ -145,6 +146,7 @@ plot_confusion <- function(truth, pred){
     labs(x = "Reference",y = "Prediction") +
     scale_x_discrete(labels=levels(plt$Prediction)) +
     scale_y_discrete(labels=rev(levels(plt$Prediction))) +
+    ggtitle(name) +
     theme(axis.text.x = element_text(angle = 45, vjust = 1.0, hjust=1))
 }
 
@@ -219,28 +221,26 @@ rm(plot_max, plot_mean, plot_median, plot_min)
 
 # 
 # trying to balance
-imbalanceRatio(df, "Activity")
+imbalanced_ratio <- imbalanceRatio(df, "Activity")
 #df_balanced <- racog(df, numInstances = 100, classAttr = "Activity")
-df_balanced <- RandOverClassif(Activity ~., df, C.perc = "balance")
-imbalanceRatio(df_balanced, "Activity")
+df_oversampled <- RandOverClassif(Activity ~., df, C.perc = "balance")
+oversampled_ratio <- imbalanceRatio(df_oversampled, "Activity")
 
 
 # distribution of outcomes in the training dataset
-df_balanced %>% group_by(Activity) %>% mutate(n = n()) %>%
+df_oversampled %>% group_by(Activity) %>% mutate(n = n()) %>%
   ggplot(aes(Activity)) +
   geom_bar() + 
   xlab("Activity") + 
   theme(axis.text.x=element_text(angle = -90, hjust = 0))
 
 
-# Undersampling+oversampling both
+# Undersampling+oversampling both (SMOTE)
 
-df_balanced2 <- SMOTE(X = df[,1:561], target = df$Activity, K = 20)$data
-names(df_balanced2)[names(df_balanced2) == 'class'] <- 'Activity'
+df_SMOTE <- SmoteClassif(Activity ~., df, C.perc = "balance")
+SMOTE_ratio <- imbalanceRatio(df_SMOTE, "Activity")
 
-df_balanced2 <- SmoteClassif(Activity ~., df, C.perc = "balance")
-
-df_balanced2 %>% group_by(Activity) %>% mutate(n = n()) %>%
+df_SMOTE %>% group_by(Activity) %>% mutate(n = n()) %>%
   ggplot(aes(Activity)) +
   geom_bar() + 
   xlab("Activity") + 
@@ -249,55 +249,298 @@ df_balanced2 %>% group_by(Activity) %>% mutate(n = n()) %>%
 
 #Compare three df by lda with 10-fold cross-val
 control <- trainControl(method="cv", number=10, verbose = PRINT_DEBUG)
-imbalanced_model <- train(Activity ~ ., method = "lda", data = df, trControl = control)
-oversampled_model <- train(Activity ~ ., method = "lda", data = df_balanced)
-SMOTE_model <- train(Activity ~ ., method = "lda", data = df_balanced2)
+
+time_start <- unclass(Sys.time())
+imbalanced_lda_model <- train(Activity ~ ., method = "lda", data = df, trControl = control)
+time_end <- unclass(Sys.time())
+time_imbalanced_lda <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
+time_start <- unclass(Sys.time())
+oversampled_lda_model <- train(Activity ~ ., method = "lda", data = df_oversampled, trControl = control)
+time_end <- unclass(Sys.time())
+time_oversampled_lda <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
+
+time_start <- unclass(Sys.time())
+SMOTE_lda_model <- train(Activity ~ ., method = "lda", data = df_SMOTE, trControl = control)
+time_end <- unclass(Sys.time())
+time_SMOTE_lda <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
 
 # Test with test data (to create another)
 
-imbalance_test <- predict(imbalanced_model, x_test)
-plot_confusion(factor(imbalance_test), factor(y_test$Activity))
+imbalance_lda_test <- predict(imbalanced_lda_model, x_test)
+plot_confusion(factor(imbalance_lda_test), factor(y_test$Activity), "Imbalance lda test")
 
-oversampled_test <- predict(oversampled_model, x_test)
-plot_confusion(factor(oversampled_test), factor(y_test$Activity))
+oversampled_lda_test <- predict(oversampled_lda_model, x_test)
+plot_confusion(factor(oversampled_lda_test), factor(y_test$Activity), "Oversampled lda test")
 
-SMOTE_test <- predict(SMOTE_model, x_test)
-plot_confusion(factor(SMOTE_test), factor(y_test$Activity))
+SMOTE_lda_test <- predict(SMOTE_lda_model, x_test)
+plot_confusion(factor(SMOTE_lda_test), factor(y_test$Activity), "SMOTE lda test")
 
 
 # stats
-xtab <- table(factor(imbalance_test), factor(y_test$Activity))
-cm_unbalanced <- confusionMatrix(xtab)
-cm_unbalanced$overall
-xtab <- table(factor(oversampled_test), factor(y_test$Activity))
-cm_oversampled <- confusionMatrix(xtab)
-cm_oversampled$overall
-xtab <- table(factor(SMOTE_test), factor(y_test$Activity))
-cm_SMOTE <- confusionMatrix(xtab)
-cm_SMOTE$overall
+xtab <- table(factor(imbalance_lda_test), factor(y_test$Activity))
+cm_lda_unbalanced <- confusionMatrix(xtab)
+cm_lda_unbalanced$overall
+xtab <- table(factor(oversampled_lda_test), factor(y_test$Activity))
+cm_lda_oversampled <- confusionMatrix(xtab)
+cm_lda_oversampled$overall
+xtab <- table(factor(SMOTE_lda_test), factor(y_test$Activity))
+cm_lda_SMOTE <- confusionMatrix(xtab)
+cm_lda_SMOTE$overall
+
+
+
+
+#Compare three df by knn with 10-fold cross-val
+control <- trainControl(method="cv", number=10, verbose = PRINT_DEBUG)
+
+time_start <- unclass(Sys.time())
+imbalanced_knn_model <- train(Activity ~ ., method = "knn", data = df, trControl = control)
+time_end <- unclass(Sys.time())
+time_imbalanced_knn <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
+time_start <- unclass(Sys.time())
+oversampled_knn_model <- train(Activity ~ ., method = "knn", data = df_oversampled, trControl = control)
+time_end <- unclass(Sys.time())
+time_oversampled_knn <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
+
+time_start <- unclass(Sys.time())
+SMOTE_knn_model <- train(Activity ~ ., method = "knn", data = df_SMOTE, trControl = control)
+time_end <- unclass(Sys.time())
+time_SMOTE_knn <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
+
+# Test with test data (to create another)
+
+imbalance_knn_test <- predict(imbalanced_knn_model, x_test)
+plot_confusion(factor(imbalance_knn_test), factor(y_test$Activity), "Imbalance knn test")
+
+oversampled_knn_test <- predict(oversampled_knn_model, x_test)
+plot_confusion(factor(oversampled_knn_test), factor(y_test$Activity), "Oversampled knn test")
+
+SMOTE_knn_test <- predict(SMOTE_knn_model, x_test)
+plot_confusion(factor(SMOTE_knn_test), factor(y_test$Activity), "SMOTE knn test")
+
+
+# stats
+xtab <- table(factor(imbalance_knn_test), factor(y_test$Activity))
+cm_knn_unbalanced <- confusionMatrix(xtab)
+cm_knn_unbalanced$overall
+xtab <- table(factor(oversampled_knn_test), factor(y_test$Activity))
+cm_knn_oversampled <- confusionMatrix(xtab)
+cm_knn_oversampled$overall
+xtab <- table(factor(SMOTE_knn_test), factor(y_test$Activity))
+cm_knn_SMOTE <- confusionMatrix(xtab)
+cm_knn_SMOTE$overall
+
+
+
+
+#Compare three df by svmLinear with 10-fold cross-val
+control <- trainControl(method="cv", number=10, verbose = PRINT_DEBUG)
+
+time_start <- unclass(Sys.time())
+imbalanced_svmLinear_model <- train(Activity ~ ., method = "svmLinear", data = df, trControl = control)
+time_end <- unclass(Sys.time())
+time_imbalanced_svmLinear <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
+time_start <- unclass(Sys.time())
+oversampled_svmLinear_model <- train(Activity ~ ., method = "svmLinear", data = df_oversampled, trControl = control)
+time_end <- unclass(Sys.time())
+time_oversampled_svmLinear <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
+
+time_start <- unclass(Sys.time())
+SMOTE_svmLinear_model <- train(Activity ~ ., method = "svmLinear", data = df_SMOTE, trControl = control)
+time_end <- unclass(Sys.time())
+time_SMOTE_svmLinear <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
+
+# Test with test data (to create another)
+
+imbalance_svmLinear_test <- predict(imbalanced_svmLinear_model, x_test)
+plot_confusion(factor(imbalance_svmLinear_test), factor(y_test$Activity), "Imbalance svmLinear test")
+
+oversampled_svmLinear_test <- predict(oversampled_svmLinear_model, x_test)
+plot_confusion(factor(oversampled_svmLinear_test), factor(y_test$Activity), "Oversampled svmLinear test")
+
+SMOTE_svmLinear_test <- predict(SMOTE_svmLinear_model, x_test)
+plot_confusion(factor(SMOTE_svmLinear_test), factor(y_test$Activity), "SMOTE svmLinear test")
+
+
+# stats
+xtab <- table(factor(imbalance_svmLinear_test), factor(y_test$Activity))
+cm_svmLinear_unbalanced <- confusionMatrix(xtab)
+cm_svmLinear_unbalanced$overall
+xtab <- table(factor(oversampled_svmLinear_test), factor(y_test$Activity))
+cm_svmLinear_oversampled <- confusionMatrix(xtab)
+cm_svmLinear_oversampled$overall
+xtab <- table(factor(SMOTE_svmLinear_test), factor(y_test$Activity))
+cm_svmLinear_SMOTE <- confusionMatrix(xtab)
+cm_svmLinear_SMOTE$overall
 
 
 # Dimension reduction
 
 
+# calculate correlation matrix
+correlationMatrix <- cor(x_train)
+# summarize the correlation matrix
+print(correlationMatrix)
+corrplot(correlationMatrix, method = "color", tl.pos='n')
+# find attributes that are highly corrected (ideally >0.75)
+highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.9)
+highlyCorrelated2 <- findCorrelation(correlationMatrix, cutoff=0.75)
+# print indexes of highly correlated attributes
+#print(highlyCorrelated)
+#print(highlyCorrelated2)
 
-# # calculate correlation matrix
-# correlationMatrix <- cor(x_train)
-# # summarize the correlation matrix
-# print(correlationMatrix)
-# corrplot(correlationMatrix, method = "color", tl.pos='n')
-# # find attributes that are highly corrected (ideally >0.75)
-# highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.9)
-# highlyCorrelated2 <- findCorrelation(correlationMatrix, cutoff=0.75)
-# # print indexes of highly correlated attributes
-# print(highlyCorrelated)
-# print(highlyCorrelated2)
-# 
-# # remove highly correlated features
-# df_reduced <- df %>% select(-all_of(highlyCorrelated))
-# df_reduced2 <- df %>% select(-all_of(highlyCorrelated2))
-# 
-# corrplot(cor(df_reduced %>% select(-Activity)), method = "color", tl.pos='n')
+# remove highly correlated features
+df_reduced_90 <- df %>% select(-all_of(highlyCorrelated))
+df_reduced_75 <- df %>% select(-all_of(highlyCorrelated2))
+
+corrplot(cor(df_reduced_90 %>% select(-Activity)), method = "color", tl.pos='n')
+corrplot(cor(df_reduced_75 %>% select(-Activity)), method = "color", tl.pos='n')
+
+# prepare test data
+x_test_corr90 <- x_test %>% select(-all_of(highlyCorrelated))
+x_test_corr75 <- x_test %>% select(-all_of(highlyCorrelated2))
+
+# Applying PCA
+
+
+df_PCA <- prcomp(x_train, scale = TRUE)
+
+plot(df_PCA)
+
+df_PCA_15 <- as.data.frame(df_PCA$x[,1:15]) %>% cbind(y_train)
+df_PCA_100 <- as.data.frame(df_PCA$x[,1:100]) %>% cbind(y_train)
+df_PCA_200 <- as.data.frame(df_PCA$x[,1:200]) %>% cbind(y_train)
+df_PCA_300 <- as.data.frame(df_PCA$x[,1:300]) %>% cbind(y_train)
+
+
+
+
+# Transform test_set
+col_means <- colMeans(x_test)
+x_test_PCA <- sweep(as.matrix(x_test), 2, col_means) %*% df_PCA$rotation
+x_test_15 <- as.data.frame(x_test_PCA[,1:15])
+x_test_100 <- as.data.frame(x_test_PCA[,1:100])
+x_test_200 <- as.data.frame(x_test_PCA[,1:200])
+x_test_300 <- as.data.frame(x_test_PCA[,1:300])
+
+# oversampled 100
+
+df_PCA_overs <- prcomp(df_oversampled[,1:561], scale = TRUE)
+df_PCA_SMOTE <- prcomp(df_SMOTE[,1:561], scale = TRUE)
+
+
+df_PCA_100_overs <- as.data.frame(df_PCA_overs$x[,1:100]) %>% cbind(Activity = df_oversampled$Activity)
+df_PCA_100_SMOTE <- as.data.frame(df_PCA_SMOTE$x[,1:100]) %>% cbind(Activity = df_SMOTE$Activity)
+
+#Compare three df by lda with 10-fold cross-val
+control <- trainControl(method="cv", number=10, verbose = PRINT_DEBUG)
+
+time_start <- unclass(Sys.time())
+corr90_lda_model <- train(Activity ~ ., method = "lda", data = df_reduced_90, trControl = control)
+time_end <- unclass(Sys.time())
+time_corr90_lda <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
+time_start <- unclass(Sys.time())
+corr75_lda_model <- train(Activity ~ ., method = "lda", data = df_reduced_75, trControl = control)
+time_end <- unclass(Sys.time())
+time_corr75_lda <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
+
+time_start <- unclass(Sys.time())
+PCA15_lda_model <- train(Activity ~ ., method = "lda", data = df_PCA_15, trControl = control)
+time_end <- unclass(Sys.time())
+time_PCA15_lda <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
+time_start <- unclass(Sys.time())
+PCA100_lda_model <- train(Activity ~ ., method = "lda", data = df_PCA_100, trControl = control)
+time_end <- unclass(Sys.time())
+time_PCA100_lda <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
+time_start <- unclass(Sys.time())
+PCA200_lda_model <- train(Activity ~ ., method = "lda", data = df_PCA_200, trControl = control)
+time_end <- unclass(Sys.time())
+time_PCA200_lda <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
+time_start <- unclass(Sys.time())
+PCA300_lda_model <- train(Activity ~ ., method = "lda", data = df_PCA_300, trControl = control)
+time_end <- unclass(Sys.time())
+time_PCA300_lda <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
+
+time_start <- unclass(Sys.time())
+PCA100_overs_lda_model <- train(Activity ~ ., method = "lda", data = df_PCA_100_overs, trControl = control)
+time_end <- unclass(Sys.time())
+time_PCA100_overs_lda <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
+time_start <- unclass(Sys.time())
+PCA100_SMOTE_lda_model <- train(Activity ~ ., method = "lda", data = df_PCA_100_SMOTE, trControl = control)
+time_end <- unclass(Sys.time())
+time_PCA100_SMOTE_lda <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+
+
+# Test with test data (to create another)
+
+corr90_lda_test <- predict(corr90_lda_model, x_test_corr90)
+plot_confusion(factor(corr90_lda_test), factor(y_test$Activity), "Corr > 0.9 lda test")
+
+corr75_lda_test <- predict(corr75_lda_model, x_test_corr75)
+plot_confusion(factor(corr75_lda_test), factor(y_test$Activity), "Corr > 0.75 lda test")
+
+PCA15_lda_test <- predict(PCA15_lda_model, x_test_15)
+plot_confusion(factor(PCA15_lda_test), factor(y_test$Activity), "15 PCA lda test")
+
+
+
+PCA100_lda_test <- predict(PCA100_lda_model, x_test_100)
+plot_confusion(factor(PCA100_lda_test), factor(y_test$Activity), "100 PCA lda test")
+
+PCA200_lda_test <- predict(PCA200_lda_model, x_test_200)
+plot_confusion(factor(PCA200_lda_test), factor(y_test$Activity), "200 PCA lda test")
+
+PCA300_lda_test <- predict(PCA300_lda_model, x_test_300)
+plot_confusion(factor(PCA300_lda_test), factor(y_test$Activity), "300 PCA lda test")
+
+
+PCA100_overs_lda_test <- predict(PCA100_overs_lda_model, x_test_100)
+plot_confusion(factor(PCA100_overs_lda_test), factor(y_test$Activity), "100 PCA oversampled lda test")
+
+
+# stats
+xtab <- table(factor(corr90_lda_test), factor(y_test$Activity))
+cm_lda_corr90 <- confusionMatrix(xtab)
+cm_lda_corr90$overall
+xtab <- table(factor(corr75_lda_test), factor(y_test$Activity))
+cm_lda_corr75 <- confusionMatrix(xtab)
+cm_lda_corr75$overall
+xtab <- table(factor(PCA15_lda_test), factor(y_test$Activity))
+cm_lda_PCA15 <- confusionMatrix(xtab)
+cm_lda_PCA15$overall
+xtab <- table(factor(PCA100_lda_test), factor(y_test$Activity))
+cm_lda_PCA100 <- confusionMatrix(xtab)
+cm_lda_PCA100$overall
+xtab <- table(factor(PCA200_lda_test), factor(y_test$Activity))
+cm_lda_PCA200 <- confusionMatrix(xtab)
+cm_lda_PCA200$overall
+xtab <- table(factor(PCA300_lda_test), factor(y_test$Activity))
+cm_lda_PCA300 <- confusionMatrix(xtab)
+cm_lda_PCA300$overall
+
+
+
+
+
+
+
+
 # 
 # # remove unnecessary variables:
 # rm(correlationMatrix, highlyCorrelated)
@@ -318,30 +561,30 @@ cm_SMOTE$overall
 
 
 
-if (RETRAIN) {
-  # models <- c("lda", "naive_bayes", "svmLinear", "knn", "gamLoess", "multinom", "qda", "rf", "adaboost")
-  models <- c("lda", "naive_bayes", "svmLinear", "knn")
-  
-  fits <- lapply(models, function(model){ 
-    print(model)
-    time_start <- unclass(Sys.time())
-    fit <- train(Activity ~ ., method = model, data = df_balanced)
-    time_end <- unclass(Sys.time())
-    time <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
-    c(fit, time)
-  }) 
-  
-  names(fits) <- models
-  
-  
-  saveRDS(fits, "./models/ensemble_imba.rds")
-} else {
-    if (!file.exists("./models//ensemble_imba.rds")) {
-      stop("File not found. Rerun code with RETRAIN = TRUE")
-    } else {
-      fits <- readRDS("./models//ensemble_imba.rds")
-    }
-  }
+# if (RETRAIN) {
+#   # models <- c("lda", "naive_bayes", "svmLinear", "knn", "gamLoess", "multinom", "qda", "rf", "adaboost")
+#   models <- c("lda", "naive_bayes", "svmLinear", "knn")
+#   
+#   fits <- lapply(models, function(model){ 
+#     print(model)
+#     time_start <- unclass(Sys.time())
+#     fit <- train(Activity ~ ., method = model, data = df_balanced)
+#     time_end <- unclass(Sys.time())
+#     time <- ifelse((time_end - time_start)/60 > 180, paste((time_end - time_start)/3600, "hours"), paste((time_end - time_start)/60, "minutes"))
+#     c(fit, time)
+#   }) 
+#   
+#   names(fits) <- models
+#   
+#   
+#   saveRDS(fits, "./models/ensemble_imba.rds")
+# } else {
+#     if (!file.exists("./models//ensemble_imba.rds")) {
+#       stop("File not found. Rerun code with RETRAIN = TRUE")
+#     } else {
+#       fits <- readRDS("./models//ensemble_imba.rds")
+#     }
+#   }
 
 # https://journalofbigdata.springeropen.com/articles/10.1186/s40537-020-00349-y
 # https://towardsdatascience.com/machine-learning-multiclass-classification-with-imbalanced-data-set-29f6a177c1a
