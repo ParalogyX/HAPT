@@ -536,10 +536,30 @@ cm_lda_PCA300$overall
 
 
 
+pca <- prcomp(x_train)
+
+# plot variance explained by each of principal components
+ggplot(aes(1:length(pca$sdev), (pca$sdev^2 / sum(pca$sdev^2))*100), data = NULL) + geom_col() +
+  scale_y_continuous(name = "% variance explained", limits = c(0,15)) + xlab("PCs") +
+  xlim(0, 30) + 
+  ggtitle("Variance explained by Principal Components")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+# plot cumulative variance explained by principal components
+ggplot(aes(1:length(pca$sdev), cumsum(pca$sdev^2 / sum(pca$sdev^2))*100), data = NULL) + 
+  geom_point(alpha = 0.5, size = 1) +
+  scale_y_continuous(name = "% variance explained", limits = c(0,100)) + xlab("PCs") +
+  xlim(0, length(pca$sdev)) + geom_line() +
+  ggtitle("Cumulative variance explained by Principal Components")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+x_small <- x_train[,1:10]
 
 
+corrplot(cor(x_small), method = "color", tl.pos='n')
 
 
+# https://datascience.stackexchange.com/questions/24452/in-supervised-learning-why-is-it-bad-to-have-correlated-features
 
 # 
 # # remove unnecessary variables:
