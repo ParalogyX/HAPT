@@ -1,0 +1,88 @@
+---
+title: "Report"
+author: "Vladimir Pedchenko"
+date: "11/24/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+Human activities recognition is the necessary basis for the development of many applications such as:
+
+-   Health monitoring;
+
+-   Sport trackers;
+
+-   Context notifications/reminders, based on activity;
+
+-   Personal exercise advisers;
+
+-   VR/AR applications.
+
+In the past, to track human activities was not possible without expensive hardware which had to be mounted on the body and connected by wires to data processing computer. Fortunately, it is not a problem anymore: most of the people always have smartphone or/and smartwatch with them. These devises have set of sensors, such as accelerometer and gyroscope which provide us information about device movements and position. These signals can be preprocessed and be used as input for machine learning algorithms to recognize an activity of the person who has the device in hands or pocket.
+
+Goal of the project is to build a model, which can recognize human activities based on preprocessed smartphone sensors data.
+
+#  Dataset description
+
+In order to build, train and test the model HAPT dataset was used. It can be found at: <http://archive.ics.uci.edu/ml/datasets/Smartphone-Based+Recognition+of+Human+Activities+and+Postural+Transitions>
+
+This dataset was build by the experiments were carried out with a group of 30 volunteers within an age bracket of 19-48 years. They performed a protocol of activities composed of six basic activities: three static postures (standing, sitting, lying) and three dynamic activities (walking, walking downstairs and walking upstairs). The experiment also included postural transitions that occurred between the static postures. These are: stand-to-sit, sit-to-stand, sit-to-lie, lie-to-sit, stand-to-lie, and lie-to-stand. All the participants were wearing a smartphone (Samsung Galaxy S II) on the waist during the experiment execution. We captured 3-axial linear acceleration and 3-axial angular velocity at a constant rate of 50Hz using the embedded accelerometer and gyroscope of the device. The experiments were video-recorded to label the data manually. The obtained dataset was randomly partitioned into two sets, where 70% of the volunteers was selected for generating the training data and 30% the test data.
+
+The sensor signals (accelerometer and gyroscope) were pre-processed by applying noise filters and then sampled in fixed-width sliding windows of 2.56 sec and 50% overlap (128 readings/window). The sensor acceleration signal, which has gravitational and body motion components, was separated using a Butterworth low-pass filter into body acceleration and gravity. The gravitational force is assumed to have only low frequency components, therefore a filter with 0.3 Hz cutoff frequency was used. From each window, a vector of 561 features was obtained by calculating variables from the time and frequency domain. See 'features_info.txt' for more details.
+
+The dataset includes the following files:
+
+-   'README.txt'
+
+-   'RawData/acc_expXX_userYY.txt': The raw triaxial acceleration signal for the experiment number XX and associated to the user number YY. Every row is one acceleration sample (three axis) captured at a frequency of 50Hz.
+
+-   'RawData/gyro_expXX_userYY.txt': The raw triaxial angular speed signal for the experiment number XX and associated to the user number YY. Every row is one angular velocity sample (three axis) captured at a frequency of 50Hz.
+
+-   'RawData/labels.txt': include all the activity labels available for the dataset (1 per row).
+
+    -    Column 1: experiment number ID,
+
+    -    Column 2: user number ID,
+
+    -    Column 3: activity number ID
+
+    -    Column 4: Label start point (in number of signal log samples (recorded at 50Hz))
+
+    -    Column 5: Label end point (in number of signal log samples)
+
+-   'features_info.txt': Shows information about the variables used on the feature vector.
+
+-   'features.txt': List of all features.
+
+-   'activity_labels.txt': Links the activity ID with their activity name.
+
+-   'Train/X_train.txt': Training set.
+
+-   'Train/y_train.txt': Training labels.
+
+-   'Test/X_test.txt': Test set.
+
+-   'Test/y_test.txt': Test labels.
+
+-   'Train/subject_id_train.txt': Each row identifies the subject who performed the activity for each window sample. Its range is from 1 to 30.
+
+-   'Test/subject_id_test.txt': Each row identifies the subject who performed the activity for each window sample. Its range is from 1 to 30.
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
