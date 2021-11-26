@@ -303,7 +303,7 @@ The dataset is highly unbalanced, which must be taken in account during model bu
 ## Features analysis
 The dataset contains 561 features. They are are normalized and bounded within [-1,1]. 
 Visualization of features statistics:
-```{r features_stats, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Feature summary", fig.align='center', fig.height= 5}
+```{r features_stats, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Features summary", fig.align='center', fig.height= 5}
 # All features statistics summary 
 features_stat <- as.data.frame(df %>% select(-Activity) %>% summary()) %>% select(-Var1)
 colnames(features_stat) <-(c("feature_name", "parameter"))
@@ -337,7 +337,7 @@ plot_mean <- features_stat %>%
   geom_histogram() + 
   xlab("Mean values of all features")
 
-grid.arrange(plot_min, plot_max, plot_median, plot_mean, ncol=2, top = textGrob("Feature summary",gp=gpar(fontsize=16,font=1), x = 0.07, hjust = 0))
+grid.arrange(plot_min, plot_max, plot_median, plot_mean, ncol=2, top = textGrob("Features summary",gp=gpar(fontsize=16,font=1), x = 0.07, hjust = 0))
 
 # remove unnecessary variables:
 rm(plot_max, plot_mean, plot_median, plot_min)
@@ -350,9 +350,12 @@ knitr::kable(low_5, caption = "Five features with lowest mean value", col.names 
 
 ```
 These features are energy measure of frequency domain signals (see chapter 2.1). Visualization of their distributions for different outcome classes are shown on figure 3:
-```{r low_var_features_by_class_distr}
+```{r low_var_features_by_class_distr, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Distibution of low variance features", fig.align='center', fig.height=20, fig.width=20}
+# select only low variance features and outcome from dataset
 low_5_df <- df %>% select(c(all_of(low_5), Activity))
-trends <- lapply(activity_labels$Activity, FUN = function(x) {
+# build features distributions for each class
+colors <- c("blue" = "blue", "red" = "red", "green" = "orange")
+trends <- lapply(activity_labels$Activity, FUN = function(label) {
   low_5_df %>% filter(Activity == label) %>% ggplot() +
     geom_density(aes_string(x = as.character(low_5[1])), colour = "blue") + 
     geom_density(aes_string(x = as.character(low_5[2])), colour = "red") + 
@@ -360,12 +363,27 @@ trends <- lapply(activity_labels$Activity, FUN = function(x) {
     geom_density(aes_string(x = as.character(low_5[4])), colour = "yellow") + 
     geom_density(aes_string(x = as.character(low_5[5])), colour = "magenta") +
     xlab("Value") +
-    ggtitle(paste("Distibution of low variance features for", label, "class"))
+    ggtitle(paste("class", label))
+    
 })
-#do.call("grid.arrange", c(trends, ncol=4, top = textGrob("ggg",gp=gpar(fontsize=16,font=1), x = 0.07, hjust = 0)))
-grid.arrange(grobs = trends, ncol=3, top = textGrob("ggg",gp=gpar(fontsize=16,font=1), x = 0.07, hjust = 0))
-#trends[1]
-#grid.arrange(grobs = list(trends[[1]], trends[[2]]))
+# add legend
+# dummy trend to create legend
+invisible(dummy_plot <- data.frame(feature = low_5, var1 = c(1,2,3,4,5), var2 = c(1,2,3,4,5)) %>% 
+            ggplot(aes(var1, var2, color = feature)) +
+  geom_point() + theme(legend.position="right") + scale_color_manual(values=c("blue", "red", "green", "yellow", "magenta")))
+
+## Function to extract legend
+g_legend <- function(a.gplot){ 
+  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
+  legend <- tmp$grobs[[leg]] 
+  legend
+} 
+invisible(legend <- g_legend(dummy_plot))
+trends[[nrow(activity_labels)+1]] <- legend
+
+grid.arrange(grobs = trends, ncol=3, top = textGrob("Distibution of low variance features",gp=gpar(fontsize=20,font=1), x = 0.023, hjust = 0))
+
 
 ```
 

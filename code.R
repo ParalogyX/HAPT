@@ -259,6 +259,38 @@ trends <- lapply(activity_labels$Activity, FUN = function(x) {
     ggtitle(paste("Distibution of low variance features for", label, "class"))
 })
 
+# dummy trend to create legend
+invisible(dummy_plot <- data.frame(feature = low_5, var1 = c(1,2,3,4,5), var2 = c(1,2,3,4,5)) %>% 
+            ggplot(aes(var1, var2, color = feature)) +
+  geom_point() + theme(legend.position="bottom") + scale_color_manual(values=c("blue", "red", "green", "yellow", "magenta")))
+
+## Function to extract legend
+g_legend <- function(a.gplot){ 
+  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
+  legend <- tmp$grobs[[leg]] 
+  legend
+} 
+invisible(legend <- g_legend(dummy_plot))
+trends[[13]] <- legend
+
+grid.arrange(grobs = trends, ncol=3, top = textGrob("Distibution of low variance features",gp=gpar(fontsize=20,font=1), x = 0.023, hjust = 0))
+grid.draw(legend) 
+
+
+
+low_5_df %>% filter(Activity == "STANDING") %>% ggplot() +
+  geom_density(aes(x =!!sym(as.character(low_5[1])), color = "blue")) + 
+  geom_density(aes(x =!!sym(as.character(low_5[2])), color = "black"))
+  
+ggplot()+geom_ribbon(data=ribbon,aes(ymin=min,ymax=max,x=x.ribbon,fill='lightgreen'))+
+  geom_line(data=ribbon,aes(x=x.ribbon,y=avg,color='black'))+
+  geom_line(data=data,aes(x=x,y=new.data,color='red'))+
+  xlab('x')+ylab('density') + 
+  scale_fill_identity(name = 'the fill', guide = 'legend',labels = c('m1')) +
+  scale_colour_manual(name = 'the collllour', 
+                      values =c('black'='black','red'='red'), labels = c('c2','c1'))
+
 
 print(trends)
 # Undersampling+oversampling both (SMOTE)
