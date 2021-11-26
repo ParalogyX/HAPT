@@ -126,6 +126,9 @@ y_test <- y_test %>% mutate(Activity = factor(Activity))
 # combine x_train and y_train to one dataframe for EDA
 
 df <- cbind(x_train, y_train)
+df_validation <- cbind(x_test, y_test)
+
+rm(x_train, y_train, x_test, y_test)
 
 
 ###########################################################
@@ -174,8 +177,14 @@ df %>% is.na() %>% sum()
 df %>% group_by(Activity) %>% mutate(n = n()) %>%
   ggplot(aes(reorder(Activity, -n))) +
   geom_bar() + 
-  xlab("Activity") + 
+  xlab("Activity") + ylab("Count") +
+  ggtitle("Distibution of activities") +
   theme(axis.text.x=element_text(angle = -90, hjust = 0))
+
+# The most appeared activity
+sort(table(df$Activity),decreasing=TRUE)[1]
+# The least appeared activity
+sort(table(df$Activity),decreasing=FALSE)[1]
 
 # dataset is unbalanced, less data points for transitions between activities compare to continuous activities  
 # Will take it into account when build a model
@@ -217,7 +226,7 @@ plot_mean <- features_stat %>%
 grid.arrange(plot_min, plot_max, plot_median, plot_mean, ncol=2)
 
 # remove unnecessary variables:
-rm(plot_max, plot_mean, plot_median, plot_min)
+rm(plot_max, plot_mean, plot_median, plot_min, features_stat)
 
 # 
 # trying to balance
@@ -235,6 +244,23 @@ df_oversampled %>% group_by(Activity) %>% mutate(n = n()) %>%
   theme(axis.text.x=element_text(angle = -90, hjust = 0))
 
 
+
+
+low_5_df <- df %>% select(c(all_of(low_5), Activity))
+
+trends <- lapply(activity_labels$Activity, FUN = function(x) {
+  low_5_df %>% filter(Activity == label) %>% ggplot() +
+    geom_density(aes_string(x = as.character(low_5[1])), colour = "blue") + 
+    geom_density(aes_string(x = as.character(low_5[2])), colour = "red") + 
+    geom_density(aes_string(x = as.character(low_5[3])), colour = "green") + 
+    geom_density(aes_string(x = as.character(low_5[4])), colour = "yellow") + 
+    geom_density(aes_string(x = as.character(low_5[5])), colour = "magenta") +
+    xlab("Value") +
+    ggtitle(paste("Distibution of low variance features for", label, "class"))
+})
+
+
+print(trends)
 # Undersampling+oversampling both (SMOTE)
 
 df_SMOTE <- SmoteClassif(Activity ~., df, C.perc = "balance")
