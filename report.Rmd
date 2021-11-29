@@ -18,16 +18,15 @@ output:
     includes:
       in_header: preamble.tex
     latex_engine: xelatex
+urlcolor: blue
 ---
 
 ```{r libraries, warning=FALSE, include=FALSE, echo=FALSE}
 if(!require(tidyverse)) install.packages("tidyverse")
 if(!require(grid)) install.packages("grid")
-#if(!require(formatR)) install.packages("formatR")
 
 library(tidyverse)
 library(gridExtra)
-#library(formatR)
 ```
 
 ```{r setup, include=FALSE}
@@ -60,7 +59,7 @@ This dataset was build by the experiments were carried out with a group of 30 vo
 
 The sensor signals (accelerometer and gyroscope) were pre-processed by applying noise filters and then sampled in fixed-width sliding windows of 2.56 sec and 50% overlap (128 readings/window). The sensor acceleration signal, which has gravitational and body motion components, was separated using a Butterworth low-pass filter into body acceleration and gravity. The gravitational force is assumed to have only low frequency components, therefore a filter with 0.3 Hz cutoff frequency was used. From each window, a vector of 561 features was obtained by calculating variables from the time and frequency domain.
 
-The dataset includes the following files:
+The dataset archive includes the following files:
 
 -   'README.txt'
 
@@ -137,7 +136,7 @@ y_train <- read.csv(unzip("./data//HAPT Data Set.zip", "Train/y_train.txt"), sep
 y_train <- y_train %>% left_join(activity_labels, by = "Activity_number") %>% select(-"Activity_number")
 
 
-# Unzip and read testing data (feature vector is the same that for training data)
+# Unzip and read testing data (feature names vector is the same that for training data)
 x_test <- read.csv(unzip("./data//HAPT Data Set.zip", "Test/X_test.txt"), sep = " ", header = FALSE, col.names = features)
 y_test <- read.csv(unzip("./data//HAPT Data Set.zip", "Test/y_test.txt"), sep = " ", header = FALSE, col.names = "Activity_number")
 
@@ -288,21 +287,25 @@ knitr::kable(tail(df[c(1:3, 562)], 10), caption = "Last 10 rows of the dataset w
 
 Distribution of outcomes in the dataset:
 
-```{r outcome_distribution, echo=FALSE, fig.cap = "Distibution of activities", fig.align='center', fig.height= 5}
+```{r outcome_distribution, echo=FALSE, fig.cap = "Distribution of activities", fig.align='center', fig.height= 5}
 df %>% group_by(Activity) %>% mutate(n = n()) %>%
   ggplot(aes(reorder(Activity, -n))) +
-  geom_bar() + 
+  geom_bar(col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
   xlab("Activity") + ylab("Count") +
-  ggtitle("Distibution of activities") +
-  theme(axis.text.x=element_text(angle = -90, hjust = 0))
+  scale_y_continuous(breaks = seq(0,1500,100)) +
+  ggtitle("Distribution of activities") +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle = -60, hjust = 0))
 ```
+
 As we can see, outcomes are not equally represented in the dataset. The biggest amount of measures are classified as `r names(sort(table(df$Activity),decreasing=TRUE)[1])` and there are `r as.numeric(sort(table(df$Activity),decreasing=TRUE)[1])` of them. From other side, the least appearing activity `r names(sort(table(df$Activity),decreasing=FALSE)[1])` have only `r as.numeric(sort(table(df$Activity),decreasing=FALSE)[1])` representations in the dataset.
 
 The dataset is highly unbalanced, which must be taken in account during model building and evaluation. Data oversampling or other data balancing technique are not needed to be implemented, because looking on the activities distribution we can assume, that real distribution will be the same. Indeed, static activities takes more time compare to posture changes, which are short, momentary events.
 
 ## Features analysis
-The dataset contains 561 features. They are are normalized and bounded within [-1,1]. 
-Visualization of features statistics:
+
+The dataset contains 561 features. They are are normalized and bounded within [-1,1]. Visualization of features statistics:
+
 ```{r features_stats, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Features summary", fig.align='center', fig.height= 5}
 # All features statistics summary 
 features_stat <- as.data.frame(df %>% select(-Activity) %>% summary()) %>% select(-Var1)
@@ -319,42 +322,48 @@ colnames(features_stat) <- c("feature", "min", "first_q", "median", "mean", "thi
 
 plot_min <- features_stat %>% 
   ggplot(aes(min)) +
-  geom_histogram() + 
+  geom_histogram(binwidth = 0.02, col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
+  theme_bw() +
   xlab("Minimal values of all features")
 
 plot_max <- features_stat %>% 
   ggplot(aes(max)) +
-  geom_histogram() + 
+  geom_histogram(binwidth = 0.02, col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
+  theme_bw() +
   xlab("Maximum values of all features")
 
 plot_median <- features_stat %>% 
   ggplot(aes(median)) +
-  geom_histogram() + 
+  geom_histogram(binwidth = 0.05, col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
+  theme_bw() +
   xlab("Median values of all features")
 
 plot_mean <- features_stat %>% 
   ggplot(aes(mean)) +
-  geom_histogram() + 
+  geom_histogram(binwidth = 0.05, col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
+  theme_bw() +
   xlab("Mean values of all features")
 
-grid.arrange(plot_min, plot_max, plot_median, plot_mean, ncol=2, top = textGrob("Features summary",gp=gpar(fontsize=16,font=1), x = 0.07, hjust = 0))
+grid.arrange(plot_min, plot_max, plot_median, plot_mean, ncol=2, top = textGrob("Features summary",gp=gpar(fontsize=13,font=1), x = 0.07, hjust = 0))
 
 # remove unnecessary variables:
 rm(plot_max, plot_mean, plot_median, plot_min)
 ```
-Figure 2 confirms that vast majority of the features have minimal value as -1 and maximum value as 1. Also, we can see, that many features have very low median value (-1 - -0.9), which means that they have low variances. But looking to mean values trend, we see, that peak is shifted towards center a bit, which means that they have some variance. Remember Figure 1, which tells us, that some classes are vast minority, we can't call these features "not important" and drop them. It can be, that these features are important for minority classes, such as posture changes, detection.
-Let us look on five features with minimum mean value:
+
+Figure 2 confirms that vast majority of the features have minimal value as -1 and maximum value as 1. Also, we can see, that many features have very low median value (-1 - -0.9), which means that they have low variances. But looking to mean values trend, we see, that peak is shifted towards center a bit, which means that they have some variance. Remember Figure 1, which tells us, that some classes are vast minority, we can't call these features "not important" and drop them. It can be, that these features are important for minority classes, such as posture changes, detection. Let us look on five features with minimum mean value:
+
 ```{r low-variance-features, echo=FALSE}
 low_5 <- features_stat %>% arrange(mean) %>% head(5) %>% .$feature
 knitr::kable(low_5, caption = "Five features with lowest mean value", col.names = NULL, tidy=TRUE)
 
 ```
+
 These features are energy measure of frequency domain signals (see chapter 2.1). Visualization of their distributions for different outcome classes are shown on figure 3:
-```{r low_var_features_by_class_distr, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Distibution of low variance features", fig.align='center', fig.height=20, fig.width=20}
+
+```{r low_var_features_by_class_distr, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Distribution of low variance features", fig.align='center', fig.height=20, fig.width=20}
 # select only low variance features and outcome from dataset
 low_5_df <- df %>% select(c(all_of(low_5), Activity))
 # build features distributions for each class
-colors <- c("blue" = "blue", "red" = "red", "green" = "orange")
 trends <- lapply(activity_labels$Activity, FUN = function(label) {
   low_5_df %>% filter(Activity == label) %>% ggplot() +
     geom_density(aes_string(x = as.character(low_5[1])), colour = "blue") + 
@@ -364,6 +373,7 @@ trends <- lapply(activity_labels$Activity, FUN = function(label) {
     geom_density(aes_string(x = as.character(low_5[5])), colour = "magenta") +
     xlab("Value") +
     ggtitle(paste("class", label)) +
+    theme_bw() +
     theme(plot.title = element_text(size = 30))
     
 })
@@ -371,7 +381,7 @@ trends <- lapply(activity_labels$Activity, FUN = function(label) {
 # dummy trend to create legend
 invisible(dummy_plot <- data.frame(feature = low_5, var1 = c(1,2,3,4,5), var2 = c(1,2,3,4,5)) %>% 
             ggplot(aes(var1, var2, color = feature)) +
-  geom_point() + theme(legend.position="right") + scale_color_manual(values=c("blue", "red", "green", "yellow", "magenta")))
+  geom_point(size = 8) + theme(legend.position="right", legend.text = element_text(size = 25), legend.title=element_text(size=25)) + scale_color_manual(values=c("blue", "red", "green", "yellow", "magenta")))
 
 ## Function to extract legend
 g_legend <- function(a.gplot){ 
@@ -383,16 +393,13 @@ g_legend <- function(a.gplot){
 invisible(legend <- g_legend(dummy_plot))
 trends[[nrow(activity_labels)+1]] <- legend
 
-grid.arrange(grobs = trends, ncol=3, top = textGrob("Distibution of low variance features",gp=gpar(fontsize=30,font=1), x = 0.023, hjust = 0))
+grid.arrange(grobs = trends, ncol=3, top = textGrob("Distribution of low variance features",gp=gpar(fontsize=40,font=1), x = 0.023, hjust = 0))
 
-
+# remove unnecessary variables:
+rm(dummy_plot, legend, low_5_df, trends, low_5, g_legend)
 ```
 
-
-
-It is large amount to visualize all of them of doing analysis one by one. Let's split them in groups, based on provided by dataset authors description (see chapter 2.1):
-Group 1: tBodyAcc-1
-
+It is clearly seen that some of these features define posture transitions and specifically the minor class SIT_TO_STAND. Despite the fact that the dataset contains 561 features, which is quite a lot, and that they were calculated from 6 raw signals and for sure have some correlation with each other, there will not be feature reduction or feature selection used in the project. For machine learning algorithms even very low variance features can be needed to detect rare classes,
 
 # Literature
 
