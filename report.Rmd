@@ -23,10 +23,13 @@ urlcolor: blue
 
 ```{r libraries, warning=FALSE, include=FALSE, echo=FALSE}
 if(!require(tidyverse)) install.packages("tidyverse")
+if(!require(gridExtra)) install.packages("gridExtra")
 if(!require(grid)) install.packages("grid")
+
 
 library(tidyverse)
 library(gridExtra)
+library(grid)
 ```
 
 ```{r setup, include=FALSE}

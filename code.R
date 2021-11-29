@@ -30,11 +30,13 @@ cat("\014")
 if(!require(rstudioapi)) install.packages("rstudioapi")
 if(!require(tidyverse)) install.packages("tidyverse")
 if(!require(gridExtra)) install.packages("gridExtra")
+if(!require(grid)) install.packages("grid")
 
 # Load libraries
 library(rstudioapi)
 library(tidyverse)
 library(gridExtra)
+library(grid)
 
 ###########################################################
 #                      PROGRAM CONTROL                    #
@@ -254,3 +256,44 @@ grid.arrange(grobs = trends, ncol=3, top = textGrob("Distribution of low varianc
 
 # remove unnecessary variables:
 rm(dummy_plot, legend, low_5_df, trends, low_5, g_legend)
+
+
+
+###########################################################
+#                      Model building                     #
+###########################################################
+
+library(caret)
+
+# linear
+
+control <- trainControl(method="cv", number=3, savePredictions = TRUE, classProbs = TRUE, verbose = PRINT_DEBUG)
+
+library(yardstick)
+#metrics = yardstick::metric_set(yardstick::roc_auc, yardstick::sens, yardstick::spec)
+# Linear Discriminant Analysis
+#library(MASS)
+lda_fit <- train(Activity ~ ., data = df, method = "lda", trControl = control, metric = "ROC")
+plot_confusion(lda_fit$pred$obs, lda_fit$pred$pred)
+
+multiclass.roc(lda_fit$pred$obs, lda_fit$pred[3:14])
+#roc_auc(lda_fit$pred$obs, SIT_TO_LIE, STAND_TO_LIE)
+#roc_auc(lda_fit$pred$obs, lda_fit$pred$pred)
+
+# Penalized Discriminant Analysis
+library(mda)
+pdaGrid <- expand.grid(lambda = seq(0.04, 0.2, 0.02))
+pda_fit <- train(Activity ~ ., data = df, method = "pda", trControl = control, tuneGrid = pdaGrid, metric = "ROC")
+
+plot_confusion(pda_fit$pred$obs, pda_fit$pred$pred)
+
+multiclass.roc(pda_fit$pred$obs, pda_fit$pred[3:14])
+
+
+#final_pda <- train(Activity ~ ., data = df, method = "pda", tuneGrid = c(lambda = 0.08))
+pda_test <- predict(pda_fit$finalModel, df_validation[1:561])
+
+plot_confusion(pda_test, df_validation$Activity)
+
+lda_test <- predict(lda_fit, df_validation[1:561])
+plot_confusion(lda_test, df_validation$Activity)
