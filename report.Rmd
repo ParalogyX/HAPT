@@ -408,3 +408,5 @@ It is clearly seen that some of these features define posture transitions and sp
 
 1.  Jorge-L. Reyes-Ortiz, Luca Oneto, Albert Samà, Xavier Parra, Davide Anguita. Transition-Aware Human Activity Recognition Using Smartphones. Neurocomputing. Springer 2015.
 2.  [Rafael A. Irizarry, Introduction to Data Science](https://rafalab.github.io/dsbook/)
+3.  [Bex T., Comprehensive Guide to Multiclass Classification Metrics](https://towardsdatascience.com/comprehensive-guide-on-multiclass-classification-metrics-af94cfb83fbd)
+4.  [Max Kuhn, The caret Package](https://topepo.github.io/caret/)
