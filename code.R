@@ -303,6 +303,21 @@ var_explained[1:100,] %>%
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.0))
 
+
+# plot with two first PC's
+df_pca <- as.data.frame(pca$x) %>% cbind(df[562])
+
+# visualize binary classification of two PC
+
+df_pca %>% ggplot(aes(x = PC1, y = PC2, color = Activity)) +
+  geom_point()
+
+df_pca %>% ggplot(aes(x = PC3, y = PC4, color = Activity)) +
+  geom_point()
+
+df_pca %>% ggplot(aes(x = PC33, y = PC44, color = Activity)) +
+  geom_point()
+
 ###########################################################
 #                      Model building                     #
 ###########################################################
