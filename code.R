@@ -31,12 +31,14 @@ if(!require(rstudioapi)) install.packages("rstudioapi")
 if(!require(tidyverse)) install.packages("tidyverse")
 if(!require(gridExtra)) install.packages("gridExtra")
 if(!require(grid)) install.packages("grid")
+if(!require(conflicted)) install.packages("conflicted")
 
 # Load libraries
 library(rstudioapi)
 library(tidyverse)
 library(gridExtra)
 library(grid)
+library(conflicted)
 
 
 ###########################################################
@@ -45,6 +47,11 @@ library(grid)
 
 # Set working directory to source file location
 setwd(dirname(getActiveDocumentContext()$path))
+
+
+# function select is masked in other package, but we need only this one
+conflict_prefer("select", "dplyr")
+conflict_prefer("filter", "dplyr")
 
 # Program controls
 RETRAIN <- T       # TRUE: models will be retrained; FALSE: trained models will be loaded from files
@@ -84,7 +91,7 @@ features <- str_replace_all(features, " ", "")
 # Read activity labels to replace activity number by activity label in the outcome vector
 activity_labels <- read.csv(unzip("./data//HAPT Data Set.zip", "activity_labels.txt"), sep = " ", header = FALSE)
 colnames(activity_labels) <- c("Activity_number", "Activity")
-activity_labels <- activity_labels %>% dplyr::select("Activity_number", "Activity")
+activity_labels <- activity_labels %>% select("Activity_number", "Activity")
 
 # Unzip and read training data
 x_train <- read.csv(unzip("./data//HAPT Data Set.zip", "Train/X_train.txt"), sep = " ", header = FALSE, col.names = features)
@@ -185,12 +192,12 @@ df %>% group_by(Activity) %>% mutate(n = n()) %>%
 sort(table(df$Activity),decreasing=TRUE)
 
 # All features statistics summary 
-features_stat <- as.data.frame(df %>% dplyr::select(-Activity) %>% summary()) %>% dplyr::select(-Var1)
+features_stat <- as.data.frame(df %>% select(-Activity) %>% summary()) %>% select(-Var1)
 colnames(features_stat) <-(c("feature_name", "parameter"))
 
 features_stat <- features_stat %>% mutate(param_name = map(strsplit(parameter, ":"),1), 
                                           value = as.numeric(unlist(map(strsplit(parameter, ":"),2)))) %>% 
-  dplyr::select(-parameter)
+  select(-parameter)
 
 features_stat <- features_stat %>% pivot_wider(names_from = param_name, values_from = value)
 
@@ -272,21 +279,29 @@ rm(dummy_plot, legend, low_5_df, trends, low_5, g_legend)
 
 
 
-# visualisation with PCA
+# visualization with PCA
+
+var_explained <- data.frame(PC= paste0("PC",1:561),
+                            var_explained=(pca$sdev)^2/sum((pca$sdev)^2))
+
+var_explained[1:20,] %>%
+  ggplot(aes(x=factor(PC, levels = PC),y=var_explained * 100)) +
+  geom_col(col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) +
+  xlab("Principal component") + ylab("% of variance explained") +
+  ggtitle("Variance explained by Principal Components") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.0))
 
 
-
-# center all and check stats
-
-# center with 'colMeans()'
-center_colmeans <- function(x) {
-  xcenter = colMeans(x)
-  x - rep(xcenter, rep.int(nrow(x), ncol(x)))
-}
-
-# apply it
-df_c <- center_colmeans(df[1:561]) %>% cbind(df[562])
-
+var_explained[1:100,] %>%
+  ggplot(aes(x=as.numeric(factor(PC, levels = PC)), y=cumsum(var_explained * 100), group = 1)) +
+  geom_point(alpha = 0.5, size = 1) +
+  geom_line() +
+  xlab("Principal component") + ylab("% of variance explained") +
+  #scale_x_discrete(labels = c(1, 50, 100)) + 
+  ggtitle("Cumulative variance explained by Principal Components") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.0))
 
 ###########################################################
 #                      Model building                     #
@@ -358,7 +373,7 @@ if (RETRAIN) {
 #ensemble_total_time/3600  # ~4 hours
 # print results
 
-results <- data.frame(t(sapply(1:length(models), function(n){
+results <- data.frame(t(sapply(models, function(n){
   pos_max <- which.max(fits[[n]]$results$Kappa)
   c(fits[[n]]$method, fits[[n]]$results$Kappa[pos_max], fits[[n]]$times$everything["elapsed"])
 })))

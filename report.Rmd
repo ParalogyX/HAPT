@@ -25,15 +25,29 @@ urlcolor: blue
 if(!require(tidyverse)) install.packages("tidyverse")
 if(!require(gridExtra)) install.packages("gridExtra")
 if(!require(grid)) install.packages("grid")
-
+if(!require(conflicted)) install.packages("conflicted")
 
 library(tidyverse)
 library(gridExtra)
 library(grid)
+library(conflicted)
 ```
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, tidy.opts=list(width.cutoff=80), tidy=TRUE)
+```
+
+```{r program-control, message=FALSE, warning=FALSE, include=FALSE}
+# function select is masked in other package, but we need only this one
+conflict_prefer("select", "dplyr")
+conflict_prefer("filter", "dplyr")
+
+# Program controls
+RETRAIN <- T       # TRUE: models will be retrained; FALSE: trained models will be loaded from files
+PRINT_DEBUG <- T   # TRUE: debug information and training functions output will be printed out to the console; 
+#                    FALSE: no or only minimum of debug information will be printed out to the console
+
+set.seed(11, sample.kind="Rounding")          # Set seed for reproducibility
 ```
 
 # Introduction
@@ -281,6 +295,14 @@ Additional vectors obtained by averaging the signals in a signal window sample. 
 
 First, let's get some general information about dataset.
 
+```{r first-look}
+# dataset dimensions 
+dim(df)
+
+# NAs in dataset
+df %>% is.na() %>% sum()
+```
+
 The dataset contains `r nrow(df)` rows and `r ncol(df)` columns. There are `r df %>% is.na() %>% sum()` missing values in it. List of features names is too long to print it out completely, therefore we will look on head and tail of the dataset with just first three features and outcome column:
 
 ```{r head_tail, echo=FALSE}
@@ -303,7 +325,7 @@ df %>% group_by(Activity) %>% mutate(n = n()) %>%
 
 As we can see, outcomes are not equally represented in the dataset. The biggest amount of measures are classified as `r names(sort(table(df$Activity),decreasing=TRUE)[1])` and there are `r as.numeric(sort(table(df$Activity),decreasing=TRUE)[1])` of them. From other side, the least appearing activity `r names(sort(table(df$Activity),decreasing=FALSE)[1])` have only `r as.numeric(sort(table(df$Activity),decreasing=FALSE)[1])` representations in the dataset.
 
-The dataset is highly unbalanced, which must be taken in account during model building and evaluation. Data oversampling or other data balancing technique are not needed to be implemented, because looking on the activities distribution we can assume, that real distribution will be the same. Indeed, static activities takes more time compare to posture changes, which are short, momentary events.
+The dataset is highly unbalanced, which must be taken in account during model building and evaluation. All postural transitions are minority classes, compare to other activities. It is expected that real distribution is the same: static activities takes more time compare to posture changes, which are short, momentary events.
 
 ## Features analysis
 
@@ -402,7 +424,50 @@ grid.arrange(grobs = trends, ncol=3, top = textGrob("Distribution of low varianc
 rm(dummy_plot, legend, low_5_df, trends, low_5, g_legend)
 ```
 
-It is clearly seen that some of these features define posture transitions and specifically the minor class SIT_TO_STAND. Despite the fact that the dataset contains 561 features, which is quite a lot, and that they were calculated from 6 raw signals and for sure have some correlation with each other, there will not be feature reduction or feature selection used in the project. For machine learning algorithms even very low variance features can be needed to detect rare classes,
+It is clearly seen that some of these features define posture transitions and specifically the minor class SIT_TO_STAND.
+
+Unfortunately, it is not possible to effectively visualize all 561 features, therefore Principal Component Analysis will be performed.
+
+## Principal Component Analisys
+
+Principal component analysis (PCA) is the process of computing the principal components and using them to perform a change of basis on the data, sometimes using only the first few principal components and ignoring the rest. PCA is defined as an orthogonal linear transformation that transforms the data to a new coordinate system such that the greatest variance by some scalar projection of the data comes to lie on the first coordinate (called the first principal component), the second greatest variance on the second coordinate, and so on.
+
+We can calculate principal components using function *prcomp* with argument scale = TRUE, which scales the variables to have unit variance before the analysis takes place:
+```{r pca}
+pca <- prcomp(df[-ncol(df)], scale. = TRUE)
+```
+Visualizing the variance explained by each component help understand more about the data. It helps us identifying visually, how many principal components are needed to explain the data variation:
+```{r pca-explained, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Variance explained by each of principal components", fig.align='center', fig.height=20, fig.width=20}
+var_explained <- data.frame(PC= paste0("PC",1:561),
+                               var_explained=(pca$sdev)^2/sum((pca$sdev)^2))
+ 
+var_explained[1:20,] %>%
+  ggplot(aes(x=factor(PC, levels = PC),y=var_explained * 100)) +
+  geom_col(col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) +
+  xlab("Principal component") + ylab("% of variance explained") +
+  ggtitle("Variance explained by Principal Components") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.0, size = 40),
+        axis.text=element_text(size=20),
+        axis.title=element_text(size=20))
+```
+```{r pca-cumulative, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Cumulative variance explained by each of principal components", fig.align='center', fig.height=20, fig.width=20}
+var_explained[1:100,] %>%
+  ggplot(aes(x=as.numeric(factor(PC, levels = PC)), y=cumsum(var_explained * 100), group = 1)) +
+  geom_point(alpha = 0.5, size = 1) +
+  geom_line() +
+  xlab("Principal component") + ylab("% of variance explained") +
+  #scale_x_discrete(labels = c(1, 50, 100)) + 
+  ggtitle("Cumulative variance explained by Principal Components") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.0, size = 40),
+        axis.text=element_text(size=20),
+        axis.title=element_text(size=20))
+```
+As we can see, almost half of variances can be explained by one principal component. But looking on the total variance explained by principal components, we can see, that to explain at least 95% of variance, we need more than 100 principal components. Conclusion is that our data space is indeed very multidimensional.
+
+Let's which classes are easily distinguished by few first principal components:
+
 
 # Literature
 
@@ -410,3 +475,4 @@ It is clearly seen that some of these features define posture transitions and sp
 2.  [Rafael A. Irizarry, Introduction to Data Science](https://rafalab.github.io/dsbook/)
 3.  [Bex T., Comprehensive Guide to Multiclass Classification Metrics](https://towardsdatascience.com/comprehensive-guide-on-multiclass-classification-metrics-af94cfb83fbd)
 4.  [Max Kuhn, The caret Package](https://topepo.github.io/caret/)
+5.  [Jolliffe, I. T. (2002). Principal Component Analysis](https://link.springer.com/book/10.1007%2Fb98835)
