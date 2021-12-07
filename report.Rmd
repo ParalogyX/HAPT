@@ -50,6 +50,48 @@ PRINT_DEBUG <- T   # TRUE: debug information and training functions output will 
 set.seed(11, sample.kind="Rounding")          # Set seed for reproducibility
 ```
 
+```{r functions, message=FALSE, warning=FALSE, include=FALSE}
+# Function to extract legend
+g_legend <- function(a.gplot){ 
+  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
+  legend <- tmp$grobs[[leg]] 
+  legend
+} 
+
+# Function for confusion plot
+plot_confusion <- function(truth, pred, name = "Confusion matrix", prop = FALSE){
+  
+  if (prop){
+    xtab <- prop.table(table(pred, truth))
+  }
+  else {
+    xtab <- table(pred, truth)
+  }
+  cm <- confusionMatrix(xtab)
+  plt <- as.data.frame(cm$table)
+  colnames(plt) <- c("Prediction", "Reference", "Freq")
+  plt$Prediction <- factor(plt$Prediction, levels=rev(levels(plt$Prediction)))
+  
+  if (prop){
+    plt <- plt %>% mutate(Freq = round(Freq * 100, 2))
+  }
+  
+  
+  ggplot(plt, aes(Prediction,Reference, fill= Freq)) +
+    geom_tile() + geom_text(aes(label=Freq)) +
+    scale_fill_gradient(low="white", high="#009194") +
+    labs(x = "Reference",y = "Prediction") +
+    scale_x_discrete(labels=levels(plt$Prediction)) +
+    scale_y_discrete(labels=rev(levels(plt$Prediction))) +
+    ggtitle(ifelse(prop, paste(name, "%"), name)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1.0, hjust=1))
+}
+
+
+```
+
+
 # Introduction
 
 Human activities recognition is the necessary basis for the development of many applications such as:
@@ -408,20 +450,13 @@ invisible(dummy_plot <- data.frame(feature = low_5, var1 = c(1,2,3,4,5), var2 = 
             ggplot(aes(var1, var2, color = feature)) +
   geom_point(size = 8) + theme(legend.position="right", legend.text = element_text(size = 25), legend.title=element_text(size=25)) + scale_color_manual(values=c("blue", "red", "green", "yellow", "magenta")))
 
-## Function to extract legend
-g_legend <- function(a.gplot){ 
-  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
-  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
-  legend <- tmp$grobs[[leg]] 
-  legend
-} 
 invisible(legend <- g_legend(dummy_plot))
 trends[[nrow(activity_labels)+1]] <- legend
 
 grid.arrange(grobs = trends, ncol=3, top = textGrob("Distribution of low variance features",gp=gpar(fontsize=40,font=1), x = 0.023, hjust = 0))
 
 # remove unnecessary variables:
-rm(dummy_plot, legend, low_5_df, trends, low_5, g_legend)
+rm(dummy_plot, legend, low_5_df, trends, low_5)
 ```
 
 It is clearly seen that some of these features define posture transitions and specifically the minor class SIT_TO_STAND.
@@ -467,7 +502,183 @@ var_explained[1:100,] %>%
 As we can see, almost half of variances can be explained by one principal component. But looking on the total variance explained by principal components, we can see, that to explain at least 95% of variance, we need more than 100 principal components. Conclusion is that our data space is indeed very multidimensional.
 
 Let's which classes are easily distinguished by few first principal components:
+```{r all-two-PCs , echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "First two principal components classification plot", fig.align='center', fig.height=20, fig.width=20}
+# plot with two first PC's
+df_pca <- as.data.frame(pca$x) %>% cbind(df[ncol(df)])
 
+# visualize  classification of two PC
+
+df_pca %>% ggplot(aes(x = PC1, y = PC2, color = Activity)) +
+  geom_point() +
+  ggtitle("First two principal components classification plot")+
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.0, size = 40),
+        axis.text=element_text(size=20),
+        axis.title=element_text(size=20))
+```
+We can see, that some of the classes are very easily can be distinct one from another, but some of them occupy the same area when projecting on the first two principal components. To see, how classes can be easily distinguished from others, let us combine them into three groups:
+```{r class-combinations}
+# for better visualization we will introduce some combined classes to distinguish activities
+static <- c("LAYING", "SITTING", "STANDING")
+moving <- c("WALKING", "WALKING_DOWNSTAIRS", "WALKING_UPSTAIRS")
+postural_trans <- activity_labels$Activity[!activity_labels$Activity %in% c(static, moving)]
+
+```
+Now, we can see, how different groups are distinguished:
+```{r groups-two-PCs , echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "First two principal components for activity type classification", fig.align='center', fig.height=20, fig.width=20}
+df_pca %>% mutate(Activity_type = ifelse(Activity %in% static, "Static", 
+                                  ifelse(Activity %in% moving, "Moving", 
+                                         "Postural trans"))) %>%
+  ggplot(aes(x = PC1, y = PC2, color = Activity_type)) +
+  geom_point() +
+  ggtitle("First two principal components for activity type classification")+
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.0, size = 40),
+        axis.text=element_text(size=20),
+        axis.title=element_text(size=20))
+```
+Looking on the Figure, we can conclude that type of activity is well explained by two first principal components. 
+Here we have to deal with extremely multidimensional predictors space, therefore for visualization of classification inside the groups four plots for each group will be plotted.
+```{r pca-static, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Static activities on eight PC's", fig.align='center', fig.height=20, fig.width=20}
+# check classification inside groups
+# Static activities
+p1 <- df_pca %>% filter(Activity %in% static) %>%
+  ggplot(aes(x = PC1, y = PC2, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p2 <- df_pca %>% filter(Activity %in% static) %>%
+  ggplot(aes(x = PC3, y = PC4, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p3 <- df_pca %>% filter(Activity %in% static) %>%
+  ggplot(aes(x = PC5, y = PC6, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p4 <- df_pca %>% filter(Activity %in% static) %>%
+  ggplot(aes(x = PC7, y = PC8, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+# dummy plot for legend
+invisible(dummy_plot <- df_pca %>% filter(Activity %in% static) %>%
+            ggplot(aes(x = PC1, y = PC2, color = Activity)) +
+            geom_point() +
+            theme(legend.position = "bottom"))
+invisible(legend <- g_legend(dummy_plot))
+
+
+grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(10, 1),  top = textGrob("Static activities on eight PC's", gp=gpar(fontsize=40,font=1), x = 0.023, hjust = 0))
+
+```
+```{r pca-moving, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Moving activities on eight PC's", fig.align='center', fig.height=20, fig.width=20}
+# Moving activities
+p1 <- df_pca %>% filter(Activity %in% moving) %>%
+  ggplot(aes(x = PC1, y = PC2, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p2 <- df_pca %>% filter(Activity %in% moving) %>%
+  ggplot(aes(x = PC3, y = PC4, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p3 <- df_pca %>% filter(Activity %in% moving) %>%
+  ggplot(aes(x = PC5, y = PC6, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p4 <- df_pca %>% filter(Activity %in% moving) %>%
+  ggplot(aes(x = PC7, y = PC8, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+# dummy plot for legend
+invisible(dummy_plot <- df_pca %>% filter(Activity %in% moving) %>%
+            ggplot(aes(x = PC1, y = PC2, color = Activity)) +
+            geom_point() +
+            theme(legend.position = "bottom"))
+invisible(legend <- g_legend(dummy_plot))
+
+
+grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(10, 1),  top = textGrob("Moving activities on eight PC's", gp=gpar(fontsize=40,font=1), x = 0.023, hjust = 0))
+```
+```{r pca-trans, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Postural transitions on eight PC's", fig.align='center', fig.height=20, fig.width=20}
+# Postural transitions
+p1 <- df_pca %>% filter(Activity %in% postural_trans) %>%
+  ggplot(aes(x = PC1, y = PC2, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p2 <- df_pca %>% filter(Activity %in% postural_trans) %>%
+  ggplot(aes(x = PC3, y = PC4, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p3 <- df_pca %>% filter(Activity %in% postural_trans) %>%
+  ggplot(aes(x = PC5, y = PC6, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p4 <- df_pca %>% filter(Activity %in% postural_trans) %>%
+  ggplot(aes(x = PC7, y = PC8, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+# dummy plot for legend
+invisible(dummy_plot <- df_pca %>% filter(Activity %in% postural_trans) %>%
+            ggplot(aes(x = PC1, y = PC2, color = Activity)) +
+            geom_point() +
+            theme(legend.position = "bottom"))
+invisible(legend <- g_legend(dummy_plot))
+
+
+grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(10, 1),  top = textGrob("Postural transitions on eight PC's", gp=gpar(fontsize=40,font=1), x = 0.023, hjust = 0))
+```
+Classes inside "static" and "moving" groups can mostly be distinguished from each other using only 2-8 dimensional principal components space. Postural transitions difference is not clearly seen in 8 dimensions. Plot in higher principal components dimensions:
+```{r pca-trans-high, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Postural transitions on PC's 9-16", fig.align='center', fig.height=20, fig.width=20}
+# Check higher dimensions
+p1 <- df_pca %>% filter(Activity %in% postural_trans) %>%
+  ggplot(aes(x = PC9, y = PC10, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p2 <- df_pca %>% filter(Activity %in% postural_trans) %>%
+  ggplot(aes(x = PC11, y = PC12, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p3 <- df_pca %>% filter(Activity %in% postural_trans) %>%
+  ggplot(aes(x = PC13, y = PC14, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p4 <- df_pca %>% filter(Activity %in% postural_trans) %>%
+  ggplot(aes(x = PC15, y = PC16, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+# dummy plot for legend
+invisible(dummy_plot <- df_pca %>% filter(Activity %in% postural_trans) %>%
+            ggplot(aes(x = PC1, y = PC2, color = Activity)) +
+            geom_point() +
+            theme(legend.position = "bottom"))
+invisible(legend <- g_legend(dummy_plot))
+
+
+grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(10, 1),  top = textGrob("Postural transitions on PC's 9-16", gp=gpar(fontsize=40,font=1), x = 0.023, hjust = 0))
+
+rm(p1, p2, p3, p4, dummy_plot, legend, df_pca, pca, var_explained)
+```
+Some of classes can be distinguished in higher dimensions.
+
+## Conclusion
+- We are dealing with very high-dimensional data
+- It is multiclass problem with unbalanced data
+- Some classes are intersects with another by their nature, e.g. "STANDING" and "SITTING" (see Figure). Some uncertainty in these classes distinguishing is expected
+- All features are already scaled
 
 # Literature
 

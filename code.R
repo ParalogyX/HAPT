@@ -131,6 +131,15 @@ rm(x_train, y_train, x_test, y_test)
 #       Functions
 ##########################################################
 
+# Function to extract legend
+g_legend <- function(a.gplot){ 
+  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
+  legend <- tmp$grobs[[leg]] 
+  legend
+} 
+
+# Function for confusion plot
 plot_confusion <- function(truth, pred, name = "Confusion matrix", prop = FALSE){
   
   if (prop){
@@ -260,20 +269,13 @@ invisible(dummy_plot <- data.frame(feature = low_5, var1 = c(1,2,3,4,5), var2 = 
             geom_point() + theme(legend.position="right") + 
             scale_color_manual(values=c("blue", "red", "green", "yellow", "magenta")))
 
-## Function to extract legend
-g_legend <- function(a.gplot){ 
-  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
-  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
-  legend <- tmp$grobs[[leg]] 
-  legend
-} 
 invisible(legend <- g_legend(dummy_plot))
 trends[[nrow(activity_labels)+1]] <- legend
 
-grid.arrange(grobs = trends, ncol=3, top = textGrob("Distribution of low variance features"))
+grid.arrange(grobs = trends, ncol=3, top = textGrob("Distribution of low variance features", x = 0.023, hjust = 0))
 
 # remove unnecessary variables:
-rm(dummy_plot, legend, low_5_df, trends, low_5, g_legend)
+rm(dummy_plot, legend, low_5_df, trends, low_5, features_stat)
 
 # find most correlated with outcome features
 
@@ -281,7 +283,9 @@ rm(dummy_plot, legend, low_5_df, trends, low_5, g_legend)
 
 # visualization with PCA
 
-var_explained <- data.frame(PC= paste0("PC",1:561),
+pca <- prcomp(df[-ncol(df)], scale. = TRUE)
+
+var_explained <- data.frame(PC= paste0("PC",1:(ncol(df)-1)),
                             var_explained=(pca$sdev)^2/sum((pca$sdev)^2))
 
 var_explained[1:20,] %>%
@@ -305,18 +309,160 @@ var_explained[1:100,] %>%
 
 
 # plot with two first PC's
-df_pca <- as.data.frame(pca$x) %>% cbind(df[562])
+df_pca <- as.data.frame(pca$x) %>% cbind(df[ncol(df)])
 
-# visualize binary classification of two PC
+# visualize  classification of two PC
 
 df_pca %>% ggplot(aes(x = PC1, y = PC2, color = Activity)) +
-  geom_point()
+  geom_point() +
+  ggtitle("First two principal components classification plot")+
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.0))
 
-df_pca %>% ggplot(aes(x = PC3, y = PC4, color = Activity)) +
-  geom_point()
+# for better visualization we will introduce some combined classes to distinguish activities
+static <- c("LAYING", "SITTING", "STANDING")
+moving <- c("WALKING", "WALKING_DOWNSTAIRS", "WALKING_UPSTAIRS")
+postural_trans <- activity_labels$Activity[!activity_labels$Activity %in% c(static, moving)]
 
-df_pca %>% ggplot(aes(x = PC33, y = PC44, color = Activity)) +
-  geom_point()
+df_pca %>% mutate(Activity_type = ifelse(Activity %in% static, "Static", 
+                                  ifelse(Activity %in% moving, "Moving", 
+                                         "Postural trans"))) %>%
+  ggplot(aes(x = PC1, y = PC2, color = Activity_type)) +
+  geom_point() +
+  ggtitle("First two principal components for activity type classification")+
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.0))
+
+# check classification inside groups
+# Static activities
+p1 <- df_pca %>% filter(Activity %in% static) %>%
+  ggplot(aes(x = PC1, y = PC2, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p2 <- df_pca %>% filter(Activity %in% static) %>%
+  ggplot(aes(x = PC3, y = PC4, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p3 <- df_pca %>% filter(Activity %in% static) %>%
+  ggplot(aes(x = PC5, y = PC6, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p4 <- df_pca %>% filter(Activity %in% static) %>%
+  ggplot(aes(x = PC7, y = PC8, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+# dummy plot for legend
+invisible(dummy_plot <- df_pca %>% filter(Activity %in% static) %>%
+            ggplot(aes(x = PC1, y = PC2, color = Activity)) +
+            geom_point() +
+            theme(legend.position = "bottom"))
+invisible(legend <- g_legend(dummy_plot))
+
+
+grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(10, 1),  top = textGrob("Static activities on eight PC's", x = 0.023, hjust = 0))
+
+
+# Moving activities
+p1 <- df_pca %>% filter(Activity %in% moving) %>%
+  ggplot(aes(x = PC1, y = PC2, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p2 <- df_pca %>% filter(Activity %in% moving) %>%
+  ggplot(aes(x = PC3, y = PC4, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p3 <- df_pca %>% filter(Activity %in% moving) %>%
+  ggplot(aes(x = PC5, y = PC6, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p4 <- df_pca %>% filter(Activity %in% moving) %>%
+  ggplot(aes(x = PC7, y = PC8, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+# dummy plot for legend
+invisible(dummy_plot <- df_pca %>% filter(Activity %in% moving) %>%
+            ggplot(aes(x = PC1, y = PC2, color = Activity)) +
+            geom_point() +
+            theme(legend.position = "bottom"))
+invisible(legend <- g_legend(dummy_plot))
+
+
+grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(10, 1),  top = textGrob("Moving activities on eight PC's", x = 0.023, hjust = 0))
+
+# Postural transitions
+p1 <- df_pca %>% filter(Activity %in% postural_trans) %>%
+  ggplot(aes(x = PC1, y = PC2, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p2 <- df_pca %>% filter(Activity %in% postural_trans) %>%
+  ggplot(aes(x = PC3, y = PC4, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p3 <- df_pca %>% filter(Activity %in% postural_trans) %>%
+  ggplot(aes(x = PC5, y = PC6, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p4 <- df_pca %>% filter(Activity %in% postural_trans) %>%
+  ggplot(aes(x = PC7, y = PC8, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+# dummy plot for legend
+invisible(dummy_plot <- df_pca %>% filter(Activity %in% postural_trans) %>%
+            ggplot(aes(x = PC1, y = PC2, color = Activity)) +
+            geom_point() +
+            theme(legend.position = "bottom"))
+invisible(legend <- g_legend(dummy_plot))
+
+
+grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(10, 1),  top = textGrob("Postural transitions on eight PC's", x = 0.023, hjust = 0))
+
+# It doesn't look very distinguishable
+
+# Check higher dimensions
+p1 <- df_pca %>% filter(Activity %in% postural_trans) %>%
+  ggplot(aes(x = PC9, y = PC10, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p2 <- df_pca %>% filter(Activity %in% postural_trans) %>%
+  ggplot(aes(x = PC11, y = PC12, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p3 <- df_pca %>% filter(Activity %in% postural_trans) %>%
+  ggplot(aes(x = PC13, y = PC14, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+p4 <- df_pca %>% filter(Activity %in% postural_trans) %>%
+  ggplot(aes(x = PC15, y = PC16, color = Activity)) +
+  geom_point() +
+  theme(legend.position = "none")
+
+# dummy plot for legend
+invisible(dummy_plot <- df_pca %>% filter(Activity %in% postural_trans) %>%
+            ggplot(aes(x = PC1, y = PC2, color = Activity)) +
+            geom_point() +
+            theme(legend.position = "bottom"))
+invisible(legend <- g_legend(dummy_plot))
+
+
+grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(10, 1),  top = textGrob("Postural transitions on PC's 9-16", x = 0.023, hjust = 0))
+
+rm(p1, p2, p3, p4, dummy_plot, legend, df_pca, pca, var_explained)
+stop("Do not train yet")
 
 ###########################################################
 #                      Model building                     #
