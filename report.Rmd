@@ -456,7 +456,7 @@ trends[[nrow(activity_labels)+1]] <- legend
 grid.arrange(grobs = trends, ncol=3, top = textGrob("Distribution of low variance features",gp=gpar(fontsize=40,font=1), x = 0.023, hjust = 0))
 
 # remove unnecessary variables:
-rm(dummy_plot, legend, low_5_df, trends, low_5)
+rm(dummy_plot, legend, low_5_df, trends, low_5, features_stat)
 ```
 
 It is clearly seen that some of these features define posture transitions and specifically the minor class SIT_TO_STAND.
