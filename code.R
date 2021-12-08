@@ -28,6 +28,7 @@ cat("\014")
 ###########################################################
 # library installations if needed:
 if(!require(rstudioapi)) install.packages("rstudioapi")
+if(!require(dplyr)) install.packages("dplyr")
 if(!require(tidyverse)) install.packages("tidyverse")
 if(!require(gridExtra)) install.packages("gridExtra")
 if(!require(grid)) install.packages("grid")
@@ -35,6 +36,7 @@ if(!require(conflicted)) install.packages("conflicted")
 
 # Load libraries
 library(rstudioapi)
+library(dplyr)
 library(tidyverse)
 library(gridExtra)
 library(grid)
@@ -217,25 +219,25 @@ plot_min <- features_stat %>%
   ggplot(aes(min)) +
   geom_histogram(binwidth = 0.02, col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
   theme_bw() +
-  xlab("Minimal values of all features")
+  xlab("Minimal values of all features") + ylab("Count")
 
 plot_max <- features_stat %>% 
   ggplot(aes(max)) +
   geom_histogram(binwidth = 0.02, col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
   theme_bw() +
-  xlab("Maximum values of all features")
+  xlab("Maximum values of all features") + ylab("Count")
 
 plot_median <- features_stat %>% 
   ggplot(aes(median)) +
   geom_histogram(binwidth = 0.05, col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
   theme_bw() +
-  xlab("Median values of all features")
+  xlab("Median values of all features") + ylab("Count")
 
 plot_mean <- features_stat %>% 
   ggplot(aes(mean)) +
   geom_histogram(binwidth = 0.05, col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
   theme_bw() +
-  xlab("Mean values of all features")
+  xlab("Mean values of all features") + ylab("Count")
 
 grid.arrange(plot_min, plot_max, plot_median, plot_mean, ncol=2, top = textGrob("Features summary",gp=gpar(fontsize=13,font=1), x = 0.07, hjust = 0))
 
@@ -254,9 +256,9 @@ trends <- lapply(activity_labels$Activity, FUN = function(label) {
     geom_density(aes_string(x = as.character(low_5[1])), colour = "blue") + 
     geom_density(aes_string(x = as.character(low_5[2])), colour = "red") + 
     geom_density(aes_string(x = as.character(low_5[3])), colour = "green") + 
-    geom_density(aes_string(x = as.character(low_5[4])), colour = "yellow") + 
+    geom_density(aes_string(x = as.character(low_5[4])), colour = "orange") + 
     geom_density(aes_string(x = as.character(low_5[5])), colour = "magenta") +
-    xlab("Value") +
+    xlab("Value") + ylab("Density") +
     ggtitle(paste("class", label)) +
     theme_bw() +
     theme(plot.title = element_text(size = 15))
@@ -267,7 +269,7 @@ trends <- lapply(activity_labels$Activity, FUN = function(label) {
 invisible(dummy_plot <- data.frame(feature = low_5, var1 = c(1,2,3,4,5), var2 = c(1,2,3,4,5)) %>% 
             ggplot(aes(var1, var2, color = feature)) +
             geom_point() + theme(legend.position="right") + 
-            scale_color_manual(values=c("blue", "red", "green", "yellow", "magenta")))
+            scale_color_manual(values=c("blue", "red", "green", "orange", "magenta")))
 
 invisible(legend <- g_legend(dummy_plot))
 trends[[nrow(activity_labels)+1]] <- legend
@@ -338,27 +340,32 @@ df_pca %>% mutate(Activity_type = ifelse(Activity %in% static, "Static",
 p1 <- df_pca %>% filter(Activity %in% static) %>%
   ggplot(aes(x = PC1, y = PC2, color = Activity)) +
   geom_point() +
+  theme_bw() +
   theme(legend.position = "none")
 
 p2 <- df_pca %>% filter(Activity %in% static) %>%
   ggplot(aes(x = PC3, y = PC4, color = Activity)) +
   geom_point() +
+  theme_bw() +
   theme(legend.position = "none")
 
 p3 <- df_pca %>% filter(Activity %in% static) %>%
   ggplot(aes(x = PC5, y = PC6, color = Activity)) +
   geom_point() +
+  theme_bw() +
   theme(legend.position = "none")
 
 p4 <- df_pca %>% filter(Activity %in% static) %>%
   ggplot(aes(x = PC7, y = PC8, color = Activity)) +
   geom_point() +
+  theme_bw() +
   theme(legend.position = "none")
 
 # dummy plot for legend
 invisible(dummy_plot <- df_pca %>% filter(Activity %in% static) %>%
             ggplot(aes(x = PC1, y = PC2, color = Activity)) +
             geom_point() +
+            theme_bw() +
             theme(legend.position = "bottom"))
 invisible(legend <- g_legend(dummy_plot))
 
@@ -370,27 +377,32 @@ grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(
 p1 <- df_pca %>% filter(Activity %in% moving) %>%
   ggplot(aes(x = PC1, y = PC2, color = Activity)) +
   geom_point() +
+  theme_bw() +
   theme(legend.position = "none")
 
 p2 <- df_pca %>% filter(Activity %in% moving) %>%
   ggplot(aes(x = PC3, y = PC4, color = Activity)) +
   geom_point() +
+  theme_bw() +
   theme(legend.position = "none")
 
 p3 <- df_pca %>% filter(Activity %in% moving) %>%
   ggplot(aes(x = PC5, y = PC6, color = Activity)) +
   geom_point() +
+  theme_bw() +
   theme(legend.position = "none")
 
 p4 <- df_pca %>% filter(Activity %in% moving) %>%
   ggplot(aes(x = PC7, y = PC8, color = Activity)) +
   geom_point() +
+  theme_bw() +
   theme(legend.position = "none")
 
 # dummy plot for legend
 invisible(dummy_plot <- df_pca %>% filter(Activity %in% moving) %>%
             ggplot(aes(x = PC1, y = PC2, color = Activity)) +
             geom_point() +
+            theme_bw() +
             theme(legend.position = "bottom"))
 invisible(legend <- g_legend(dummy_plot))
 
@@ -401,27 +413,32 @@ grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(
 p1 <- df_pca %>% filter(Activity %in% postural_trans) %>%
   ggplot(aes(x = PC1, y = PC2, color = Activity)) +
   geom_point() +
+  theme_bw() +
   theme(legend.position = "none")
 
 p2 <- df_pca %>% filter(Activity %in% postural_trans) %>%
   ggplot(aes(x = PC3, y = PC4, color = Activity)) +
   geom_point() +
+  theme_bw() +
   theme(legend.position = "none")
 
 p3 <- df_pca %>% filter(Activity %in% postural_trans) %>%
   ggplot(aes(x = PC5, y = PC6, color = Activity)) +
   geom_point() +
+  theme_bw() +
   theme(legend.position = "none")
 
 p4 <- df_pca %>% filter(Activity %in% postural_trans) %>%
   ggplot(aes(x = PC7, y = PC8, color = Activity)) +
   geom_point() +
+  theme_bw() +
   theme(legend.position = "none")
 
 # dummy plot for legend
 invisible(dummy_plot <- df_pca %>% filter(Activity %in% postural_trans) %>%
             ggplot(aes(x = PC1, y = PC2, color = Activity)) +
             geom_point() +
+            theme_bw() +
             theme(legend.position = "bottom"))
 invisible(legend <- g_legend(dummy_plot))
 
@@ -434,27 +451,32 @@ grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(
 p1 <- df_pca %>% filter(Activity %in% postural_trans) %>%
   ggplot(aes(x = PC9, y = PC10, color = Activity)) +
   geom_point() +
+  theme_bw() +
   theme(legend.position = "none")
 
 p2 <- df_pca %>% filter(Activity %in% postural_trans) %>%
   ggplot(aes(x = PC11, y = PC12, color = Activity)) +
   geom_point() +
+  theme_bw() +
   theme(legend.position = "none")
 
 p3 <- df_pca %>% filter(Activity %in% postural_trans) %>%
   ggplot(aes(x = PC13, y = PC14, color = Activity)) +
   geom_point() +
+  theme_bw() +
   theme(legend.position = "none")
 
 p4 <- df_pca %>% filter(Activity %in% postural_trans) %>%
   ggplot(aes(x = PC15, y = PC16, color = Activity)) +
   geom_point() +
+  theme_bw() +
   theme(legend.position = "none")
 
 # dummy plot for legend
 invisible(dummy_plot <- df_pca %>% filter(Activity %in% postural_trans) %>%
             ggplot(aes(x = PC1, y = PC2, color = Activity)) +
             geom_point() +
+            theme_bw() +
             theme(legend.position = "bottom"))
 invisible(legend <- g_legend(dummy_plot))
 

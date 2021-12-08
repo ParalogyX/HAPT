@@ -22,11 +22,13 @@ urlcolor: blue
 ---
 
 ```{r libraries, warning=FALSE, include=FALSE, echo=FALSE}
+if(!require(dplyr)) install.packages("dplyr")
 if(!require(tidyverse)) install.packages("tidyverse")
 if(!require(gridExtra)) install.packages("gridExtra")
 if(!require(grid)) install.packages("grid")
 if(!require(conflicted)) install.packages("conflicted")
 
+library(dplyr)
 library(tidyverse)
 library(gridExtra)
 library(grid)
@@ -38,7 +40,7 @@ knitr::opts_chunk$set(echo = TRUE, tidy.opts=list(width.cutoff=80), tidy=TRUE)
 ```
 
 ```{r program-control, message=FALSE, warning=FALSE, include=FALSE}
-# function select is masked in other package, but we need only this one
+# functions select and filter are masked in other package, but we need only this one
 conflict_prefer("select", "dplyr")
 conflict_prefer("filter", "dplyr")
 
@@ -391,25 +393,25 @@ plot_min <- features_stat %>%
   ggplot(aes(min)) +
   geom_histogram(binwidth = 0.02, col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
   theme_bw() +
-  xlab("Minimal values of all features")
+  xlab("Minimal values of all features") + ylab("Count")
 
 plot_max <- features_stat %>% 
   ggplot(aes(max)) +
   geom_histogram(binwidth = 0.02, col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
   theme_bw() +
-  xlab("Maximum values of all features")
+  xlab("Maximum values of all features") + ylab("Count")
 
 plot_median <- features_stat %>% 
   ggplot(aes(median)) +
   geom_histogram(binwidth = 0.05, col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
   theme_bw() +
-  xlab("Median values of all features")
+  xlab("Median values of all features") + ylab("Count")
 
 plot_mean <- features_stat %>% 
   ggplot(aes(mean)) +
   geom_histogram(binwidth = 0.05, col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
   theme_bw() +
-  xlab("Mean values of all features")
+  xlab("Mean values of all features") + ylab("Count")
 
 grid.arrange(plot_min, plot_max, plot_median, plot_mean, ncol=2, top = textGrob("Features summary",gp=gpar(fontsize=13,font=1), x = 0.07, hjust = 0))
 
@@ -436,19 +438,21 @@ trends <- lapply(activity_labels$Activity, FUN = function(label) {
     geom_density(aes_string(x = as.character(low_5[1])), colour = "blue") + 
     geom_density(aes_string(x = as.character(low_5[2])), colour = "red") + 
     geom_density(aes_string(x = as.character(low_5[3])), colour = "green") + 
-    geom_density(aes_string(x = as.character(low_5[4])), colour = "yellow") + 
+    geom_density(aes_string(x = as.character(low_5[4])), colour = "orange") + 
     geom_density(aes_string(x = as.character(low_5[5])), colour = "magenta") +
-    xlab("Value") +
+    xlab("Value") + ylab("Density") + 
     ggtitle(paste("class", label)) +
     theme_bw() +
-    theme(plot.title = element_text(size = 30))
+    theme(plot.title = element_text(size = 30), 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
     
 })
 # add legend
 # dummy trend to create legend
 invisible(dummy_plot <- data.frame(feature = low_5, var1 = c(1,2,3,4,5), var2 = c(1,2,3,4,5)) %>% 
             ggplot(aes(var1, var2, color = feature)) +
-  geom_point(size = 8) + theme(legend.position="right", legend.text = element_text(size = 25), legend.title=element_text(size=25)) + scale_color_manual(values=c("blue", "red", "green", "yellow", "magenta")))
+  geom_point(size = 8) + theme(legend.position="left", legend.text = element_text(size = 25), legend.title=element_text(size=25)) + scale_color_manual(values=c("blue", "red", "green", "orange", "magenta")))
 
 invisible(legend <- g_legend(dummy_plot))
 trends[[nrow(activity_labels)+1]] <- legend
@@ -456,7 +460,7 @@ trends[[nrow(activity_labels)+1]] <- legend
 grid.arrange(grobs = trends, ncol=3, top = textGrob("Distribution of low variance features",gp=gpar(fontsize=40,font=1), x = 0.023, hjust = 0))
 
 # remove unnecessary variables:
-rm(dummy_plot, legend, low_5_df, trends, low_5, features_stat)
+#rm(dummy_plot, legend, low_5_df, trends, low_5, features_stat)
 ```
 
 It is clearly seen that some of these features define posture transitions and specifically the minor class SIT_TO_STAND.
@@ -467,11 +471,11 @@ Unfortunately, it is not possible to effectively visualize all 561 features, the
 
 Principal component analysis (PCA) is the process of computing the principal components and using them to perform a change of basis on the data, sometimes using only the first few principal components and ignoring the rest. PCA is defined as an orthogonal linear transformation that transforms the data to a new coordinate system such that the greatest variance by some scalar projection of the data comes to lie on the first coordinate (called the first principal component), the second greatest variance on the second coordinate, and so on.
 
-We can calculate principal components using function *prcomp* with argument scale = TRUE, which scales the variables to have unit variance before the analysis takes place:
+We can calculate principal components using function *prcomp* with argument *scale = TRUE*, which scales the variables to have unit variance before the analysis takes place:
 ```{r pca}
 pca <- prcomp(df[-ncol(df)], scale. = TRUE)
 ```
-Visualizing the variance explained by each component help understand more about the data. It helps us identifying visually, how many principal components are needed to explain the data variation:
+Visualizing the variance explained by each component helps us identifying visually, how many principal components are needed to explain the data variation:
 ```{r pca-explained, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Variance explained by each of principal components", fig.align='center', fig.height=20, fig.width=20}
 var_explained <- data.frame(PC= paste0("PC",1:561),
                                var_explained=(pca$sdev)^2/sum((pca$sdev)^2))
@@ -484,7 +488,7 @@ var_explained[1:20,] %>%
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.0, size = 40),
         axis.text=element_text(size=20),
-        axis.title=element_text(size=20))
+        axis.title=element_text(size=30))
 ```
 ```{r pca-cumulative, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Cumulative variance explained by each of principal components", fig.align='center', fig.height=20, fig.width=20}
 var_explained[1:100,] %>%
@@ -497,9 +501,9 @@ var_explained[1:100,] %>%
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.0, size = 40),
         axis.text=element_text(size=20),
-        axis.title=element_text(size=20))
+        axis.title=element_text(size=30))
 ```
-As we can see, almost half of variances can be explained by one principal component. But looking on the total variance explained by principal components, we can see, that to explain at least 95% of variance, we need more than 100 principal components. Conclusion is that our data space is indeed very multidimensional.
+As we can see on Figure 4, almost half of variances can be explained by one principal component. But looking on the total variance explained by principal components (Figure 5), we can see, that to explain at least 95% of variance, we need more than 100 principal components. Conclusion is that our data space is indeed very multidimensional.
 
 Let's which classes are easily distinguished by few first principal components:
 ```{r all-two-PCs , echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "First two principal components classification plot", fig.align='center', fig.height=20, fig.width=20}
@@ -514,7 +518,10 @@ df_pca %>% ggplot(aes(x = PC1, y = PC2, color = Activity)) +
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.0, size = 40),
         axis.text=element_text(size=20),
-        axis.title=element_text(size=20))
+        axis.title=element_text(size=30),
+        legend.title=element_text(size=20), 
+        legend.text=element_text(size=20)) +
+        guides(colour = guide_legend(override.aes = list(size=10)))
 ```
 We can see, that some of the classes are very easily can be distinct one from another, but some of them occupy the same area when projecting on the first two principal components. To see, how classes can be easily distinguished from others, let us combine them into three groups:
 ```{r class-combinations}
@@ -535,7 +542,10 @@ df_pca %>% mutate(Activity_type = ifelse(Activity %in% static, "Static",
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.0, size = 40),
         axis.text=element_text(size=20),
-        axis.title=element_text(size=20))
+        axis.title=element_text(size=30),
+        legend.title=element_text(size=20), 
+        legend.text=element_text(size=20)) +
+        guides(colour = guide_legend(override.aes = list(size=10)))
 ```
 Looking on the Figure, we can conclude that type of activity is well explained by two first principal components. 
 Here we have to deal with extremely multidimensional predictors space, therefore for visualization of classification inside the groups four plots for each group will be plotted.
@@ -545,28 +555,44 @@ Here we have to deal with extremely multidimensional predictors space, therefore
 p1 <- df_pca %>% filter(Activity %in% static) %>%
   ggplot(aes(x = PC1, y = PC2, color = Activity)) +
   geom_point() +
-  theme(legend.position = "none")
+  theme_bw() +
+  theme(legend.position = "none", 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
 
 p2 <- df_pca %>% filter(Activity %in% static) %>%
   ggplot(aes(x = PC3, y = PC4, color = Activity)) +
   geom_point() +
-  theme(legend.position = "none")
+  theme_bw() +
+  theme(legend.position = "none", 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
 
 p3 <- df_pca %>% filter(Activity %in% static) %>%
   ggplot(aes(x = PC5, y = PC6, color = Activity)) +
   geom_point() +
-  theme(legend.position = "none")
+  theme_bw() +
+  theme(legend.position = "none", 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
 
 p4 <- df_pca %>% filter(Activity %in% static) %>%
   ggplot(aes(x = PC7, y = PC8, color = Activity)) +
   geom_point() +
-  theme(legend.position = "none")
+  theme_bw() +
+  theme(legend.position = "none", 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
 
 # dummy plot for legend
 invisible(dummy_plot <- df_pca %>% filter(Activity %in% static) %>%
             ggplot(aes(x = PC1, y = PC2, color = Activity)) +
             geom_point() +
-            theme(legend.position = "bottom"))
+            theme_bw() +
+            theme(legend.position = "bottom",
+            legend.title=element_text(size=20), 
+            legend.text=element_text(size=20)) +
+            guides(colour = guide_legend(override.aes = list(size=10))))
 invisible(legend <- g_legend(dummy_plot))
 
 
@@ -578,28 +604,44 @@ grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(
 p1 <- df_pca %>% filter(Activity %in% moving) %>%
   ggplot(aes(x = PC1, y = PC2, color = Activity)) +
   geom_point() +
-  theme(legend.position = "none")
+  theme_bw() +
+  theme(legend.position = "none", 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
 
 p2 <- df_pca %>% filter(Activity %in% moving) %>%
   ggplot(aes(x = PC3, y = PC4, color = Activity)) +
   geom_point() +
-  theme(legend.position = "none")
+  theme_bw() +
+  theme(legend.position = "none", 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
 
 p3 <- df_pca %>% filter(Activity %in% moving) %>%
   ggplot(aes(x = PC5, y = PC6, color = Activity)) +
   geom_point() +
-  theme(legend.position = "none")
+  theme_bw() +
+  theme(legend.position = "none", 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
 
 p4 <- df_pca %>% filter(Activity %in% moving) %>%
   ggplot(aes(x = PC7, y = PC8, color = Activity)) +
   geom_point() +
-  theme(legend.position = "none")
+  theme_bw() +
+  theme(legend.position = "none", 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
 
 # dummy plot for legend
 invisible(dummy_plot <- df_pca %>% filter(Activity %in% moving) %>%
             ggplot(aes(x = PC1, y = PC2, color = Activity)) +
             geom_point() +
-            theme(legend.position = "bottom"))
+            theme_bw() +
+            theme(legend.position = "bottom",
+            legend.title=element_text(size=20), 
+            legend.text=element_text(size=20)) +
+            guides(colour = guide_legend(override.aes = list(size=10))))
 invisible(legend <- g_legend(dummy_plot))
 
 
@@ -609,29 +651,45 @@ grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(
 # Postural transitions
 p1 <- df_pca %>% filter(Activity %in% postural_trans) %>%
   ggplot(aes(x = PC1, y = PC2, color = Activity)) +
-  geom_point() +
-  theme(legend.position = "none")
+  geom_point(size = 3) +
+  theme_bw() +
+  theme(legend.position = "none", 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
 
 p2 <- df_pca %>% filter(Activity %in% postural_trans) %>%
   ggplot(aes(x = PC3, y = PC4, color = Activity)) +
-  geom_point() +
-  theme(legend.position = "none")
+  geom_point(size = 3) +
+  theme_bw() +
+  theme(legend.position = "none", 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
 
 p3 <- df_pca %>% filter(Activity %in% postural_trans) %>%
   ggplot(aes(x = PC5, y = PC6, color = Activity)) +
-  geom_point() +
-  theme(legend.position = "none")
+  geom_point(size = 3) +
+  theme_bw() +
+  theme(legend.position = "none", 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
 
 p4 <- df_pca %>% filter(Activity %in% postural_trans) %>%
   ggplot(aes(x = PC7, y = PC8, color = Activity)) +
-  geom_point() +
-  theme(legend.position = "none")
+  geom_point(size = 3) +
+  theme_bw() +
+  theme(legend.position = "none", 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
 
 # dummy plot for legend
 invisible(dummy_plot <- df_pca %>% filter(Activity %in% postural_trans) %>%
             ggplot(aes(x = PC1, y = PC2, color = Activity)) +
             geom_point() +
-            theme(legend.position = "bottom"))
+            theme_bw() +
+            theme(legend.position = "bottom",
+            legend.title=element_text(size=20), 
+            legend.text=element_text(size=20)) +
+            guides(colour = guide_legend(override.aes = list(size=10))))
 invisible(legend <- g_legend(dummy_plot))
 
 
@@ -642,43 +700,60 @@ Classes inside "static" and "moving" groups can mostly be distinguished from eac
 # Check higher dimensions
 p1 <- df_pca %>% filter(Activity %in% postural_trans) %>%
   ggplot(aes(x = PC9, y = PC10, color = Activity)) +
-  geom_point() +
-  theme(legend.position = "none")
+  geom_point(size = 3) +
+  theme_bw() +
+  theme(legend.position = "none", 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
 
 p2 <- df_pca %>% filter(Activity %in% postural_trans) %>%
   ggplot(aes(x = PC11, y = PC12, color = Activity)) +
-  geom_point() +
-  theme(legend.position = "none")
+  geom_point(size = 3) +
+  theme_bw() +
+  theme(legend.position = "none", 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
 
 p3 <- df_pca %>% filter(Activity %in% postural_trans) %>%
   ggplot(aes(x = PC13, y = PC14, color = Activity)) +
-  geom_point() +
-  theme(legend.position = "none")
+  geom_point(size = 3) +
+  theme_bw() +
+  theme(legend.position = "none", 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
 
 p4 <- df_pca %>% filter(Activity %in% postural_trans) %>%
   ggplot(aes(x = PC15, y = PC16, color = Activity)) +
-  geom_point() +
-  theme(legend.position = "none")
+  geom_point(size = 3) +
+  theme_bw() +
+  theme(legend.position = "none", 
+          axis.text = element_text(size = 20),
+          axis.title = element_text(size = 20))
 
 # dummy plot for legend
 invisible(dummy_plot <- df_pca %>% filter(Activity %in% postural_trans) %>%
             ggplot(aes(x = PC1, y = PC2, color = Activity)) +
             geom_point() +
-            theme(legend.position = "bottom"))
+            theme_bw() +
+            theme(legend.position = "bottom",
+            legend.title=element_text(size=20), 
+            legend.text=element_text(size=20)) +
+            guides(colour = guide_legend(override.aes = list(size=10))))
 invisible(legend <- g_legend(dummy_plot))
 
 
 grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(10, 1),  top = textGrob("Postural transitions on PC's 9-16", gp=gpar(fontsize=40,font=1), x = 0.023, hjust = 0))
 
-rm(p1, p2, p3, p4, dummy_plot, legend, df_pca, pca, var_explained)
+#rm(p1, p2, p3, p4, dummy_plot, legend, df_pca, pca, var_explained)
 ```
 Some of classes can be distinguished in higher dimensions.
 
 ## Conclusion
-- We are dealing with very high-dimensional data
-- It is multiclass problem with unbalanced data
-- Some classes are intersects with another by their nature, e.g. "STANDING" and "SITTING" (see Figure). Some uncertainty in these classes distinguishing is expected
-- All features are already scaled
+- We are dealing with very high-dimensional data;
+- It is multiclass problem with unbalanced data;
+- Some classes are intersects with another by their nature, e.g. "STANDING" and "SITTING" (see Figure). Some uncertainty in these classes distinguishing is expected;
+- All features are already scaled;
+- There are no missing values in the dataset.
 
 # Literature
 
