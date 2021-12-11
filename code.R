@@ -7,7 +7,7 @@
 ##########################################################
 #            READ THIS BEFORE RUN THE CODE!!!            #
 #                                                        #
-#  1. This code is made for R version 4.1.1 (2021-08-10) #
+#  1. This code is made for R version 4.1.2 (2021-11-01) #
 #      Check your R version (type "R.version.string"     #
 #                       in console)                      #
 #  2.                                                      #
@@ -34,6 +34,18 @@ if(!require(gridExtra)) install.packages("gridExtra")
 if(!require(grid)) install.packages("grid")
 if(!require(conflicted)) install.packages("conflicted")
 
+# for training
+# if(!require(caret)) install.packages("caret")
+# if(!require(kknn)) install.packages("kknn")
+# if(!require(HDclassif)) install.packages("HDclassif")
+# if(!require(earth)) install.packages("earth")
+# if(!require(rrcov)) install.packages("rrcov")
+# if(!require(rrcovHD)) install.packages("rrcovHD")
+# if(!require(xgboost)) install.packages("xgboost")
+# 
+# if(!require(Metrics)) install.packages("Metrics")
+
+
 # Load libraries
 library(rstudioapi)
 library(dplyr)
@@ -41,6 +53,18 @@ library(tidyverse)
 library(gridExtra)
 library(grid)
 library(conflicted)
+
+# library(caret)
+# library(kknn)
+# library(HDclassif)
+# library(earth)
+# library(rrcov)
+# library(rrcovHD)
+# library(xgboost)
+# library(Metrics)
+
+
+
 
 
 ###########################################################
@@ -170,6 +194,55 @@ plot_confusion <- function(truth, pred, name = "Confusion matrix", prop = FALSE)
     theme(axis.text.x = element_text(angle = 45, vjust = 1.0, hjust=1))
 }
 
+# replace metric
+# multiClassSummary <- function (data, lev = NULL, model = NULL){
+#   
+#   #Load Libraries
+#   require(Metrics)
+#   require(caret)
+#   
+#   #Check data
+#   if (!all(levels(data[, "pred"]) == levels(data[, "obs"]))) 
+#     stop("levels of observed and predicted data do not match")
+#   
+#   #Calculate custom one-vs-all stats for each class
+#   prob_stats <- lapply(levels(data[, "pred"]), function(class){
+#     
+#     #Grab one-vs-all data for the class
+#     pred <- ifelse(data[, "pred"] == class, 1, 0)
+#     obs  <- ifelse(data[,  "obs"] == class, 1, 0)
+#     prob <- data[,class]
+#     
+#     #Calculate one-vs-all AUC and logLoss and return
+#     cap_prob <- pmin(pmax(prob, .000001), .999999)
+#     prob_stats <- c(auc(obs, prob), logLoss(obs, cap_prob))
+#     names(prob_stats) <- c('ROC', 'logLoss')
+#     return(prob_stats) 
+#   })
+#   prob_stats <- do.call(rbind, prob_stats)
+#   rownames(prob_stats) <- paste('Class:', levels(data[, "pred"]))
+#   
+#   #Calculate confusion matrix-based statistics
+#   CM <- confusionMatrix(data[, "pred"], data[, "obs"])
+#   
+#   #Aggregate and average class-wise stats
+#   #Todo: add weights
+#   class_stats <- cbind(CM$byClass, prob_stats)
+#   class_stats <- colMeans(class_stats)
+#   
+#   #Aggregate overall stats
+#   overall_stats <- c(CM$overall)
+#   
+#   #Combine overall with class-wise stats and remove some stats we don't want 
+#   stats <- c(overall_stats, class_stats)
+#   stats <- stats[! names(stats) %in% c('AccuracyNull', 
+#                                        'Prevalence', 'Detection Prevalence')]
+#   
+#   #Clean names and return
+#   names(stats) <- gsub('[[:blank:]]+', '_', names(stats))
+#   return(stats)
+#   
+# }
 
 ###########################################################
 #                         Analysis                        #
@@ -484,42 +557,77 @@ invisible(legend <- g_legend(dummy_plot))
 grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(10, 1),  top = textGrob("Postural transitions on PC's 9-16", x = 0.023, hjust = 0))
 
 rm(p1, p2, p3, p4, dummy_plot, legend, df_pca, pca, var_explained)
-stop("Do not train yet")
+
 
 ###########################################################
 #                      Model building                     #
 ###########################################################
 
 
-# Metric will be Cohen’s Kappa score for multiclass classification
+# Metric will be average F1-score for multiclass classification
 # It is a good single value metric for unbalanced multiclass problems.
 
-if(!require(caret)) install.packages("caret")
-if(!require(kknn)) install.packages("kknn")
-if(!require(HDclassif)) install.packages("HDclassif")
-if(!require(earth)) install.packages("earth")
-if(!require(rrcov)) install.packages("rrcov")
-if(!require(rrcovHD)) install.packages("rrcovHD")
-if(!require(xgboost)) install.packages("xgboost")
+# Or balanced accuracy: F1 is NaN in nnet
+
+if(!require(caret)) install.packages("caret", dependencies = TRUE)
+if(!require(klaR)) install.packages("klaR", dependencies = TRUE)
+if(!require(kknn)) install.packages("kknn", dependencies = TRUE)
+if(!require(arm)) install.packages("arm", dependencies = TRUE)
+if(!require(mda)) install.packages("mda", dependencies = TRUE)
+if(!require(mboost)) install.packages("mboost", dependencies = TRUE)
+if(!require(nnet)) install.packages("nnet", dependencies = TRUE)
+if(!require(gbm)) install.packages("gbm", dependencies = TRUE)
+if(!require(xgboost)) install.packages("xgboost", dependencies = TRUE)
+if(!require(randomForest)) install.packages("randomForest", dependencies = TRUE)
 
 
 library(caret)
+library(klaR)
 library(kknn)
-library(HDclassif)
-library(earth)
-library(rrcov)
-library(rrcovHD)
+library(arm)
+library(mda)
+library(mboost)
+library(nnet)
+library(gbm)
 library(xgboost)
+library(randomForest)
 
-models <- c("kknn", "pda", "slda", "hdda", "pam", "multinom", "C5.0Tree", "CSimca", "rf", "pls", "earth", "xgbTree")
-models <- c("kknn", "pda", "multinom", "xgbTree")
 
-control <- trainControl(method="cv", number=10, classProbs= TRUE, summaryFunction = multiClassSummary, savePredictions = "final",
+
+#models <- c("kknn", "pda", "slda", "hdrda", "pam", "multinom", "C5.0Tree", "CSimca", "rf", "pls", "earth", "xgbTree")
+#models <- c("pcaNNet", "kknn", "pda", "multinom", "xgbTree", "C5.0Tree")
+#models <- c("kknn", "pda")
+models <- c("nb", "kknn", "pda", "multinom", "gbm", "xgbTree", "parRF", "nnet")
+
+
+print("bayesglm was excluded, as data not linear at all")
+print("gamboost only for binary")
+
+control <- trainControl(method="cv", number=5, classProbs= TRUE, summaryFunction = multiClassSummary, savePredictions = "final",
                         verbose = PRINT_DEBUG)
 
-metric <- "Kappa"
 
-file_name <- "./models//multiple_fits.rds"
+metric <- "Mean_Balanced_Accuracy"
+
+file_name <- "./models//all_models_auto.rds"
+
+# df_smote <- UBL::SmoteClassif(Activity ~ ., dat = df)
+# # plot outcomes distribution
+# df_smote %>% group_by(Activity) %>% mutate(n = n()) %>%
+#   ggplot(aes(reorder(Activity, -n))) +
+#   geom_bar(col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
+#   xlab("Activity") + ylab("Count") +
+#   scale_y_continuous(breaks = seq(0,1500,100)) +
+#   ggtitle("Distribution of activities after SMOTE is applied") +
+#   theme_bw() +
+#   theme(axis.text.x=element_text(angle = -60, hjust = 0))
+# 
+# # how many samples of each class in df
+# sort(table(df_smote$Activity),decreasing=TRUE)
+
+
+#df <- sample_n(df, 200)
+#df$Activity <- droplevels(df$Activity)
 
 if (RETRAIN) {
 
@@ -527,11 +635,13 @@ if (RETRAIN) {
   
   fits <- lapply(models, function(model){ 
     print(model)
-    if (model != "multinom") {
-      train(Activity ~ ., data = df, method = model, metric = metric, trControl = control)
-    } 
-    else {
+    if (model %in% c("multinom", "nnet")) {
       train(Activity ~ ., data = df, method = model, metric = metric, trControl = control, MaxNWts = 15000)
+    } else if(model == "gbm") {
+      train(Activity ~ ., data = df, method = model, metric = metric, trControl = control, train.fraction = 0.5)
+    }
+    else {
+      train(Activity ~ ., data = df, method = model, metric = metric, trControl = control)
     }
   }) 
   
@@ -553,288 +663,88 @@ if (RETRAIN) {
 }
   
 
-#ensemble_total_time/3600  # ~4 hours
-# print results
+# results
 
-results <- data.frame(t(sapply(models, function(n){
+# plot kappa
+results_kappa <- data.frame(t(sapply(models, function(n){
   pos_max <- which.max(fits[[n]]$results$Kappa)
   c(fits[[n]]$method, fits[[n]]$results$Kappa[pos_max], fits[[n]]$times$everything["elapsed"])
 })))
 
-colnames(results) <- c("Name", "Kappa", "Time")
+colnames(results_kappa) <- c("Name", "Kappa", "Time")
 
 
-results %>% mutate(Time = as.numeric(Time) / 60, Kappa = as.numeric(Kappa)) %>% ggplot(aes(x = Time, y = Kappa, color = Name))+
-  geom_point(size = 1) + geom_text(aes(label = Name), check_overlap = TRUE) + ggtitle("Full dataset training")
+results_kappa %>% mutate(Time = as.numeric(Time) / 60, Kappa = as.numeric(Kappa)) %>% ggplot(aes(x = Time, y = Kappa, color = Name))+
+  geom_point(size = 1) + geom_text(aes(label = Name), check_overlap = TRUE) + ggtitle("Full dataset training kappa")
+
+
+#plot AUC
+results_AUC <- data.frame(t(sapply(models, function(n){
+  pos_max <- which.max(fits[[n]]$results$AUC)
+  c(fits[[n]]$method, fits[[n]]$results$AUC[pos_max], fits[[n]]$times$everything["elapsed"])
+})))
+
+colnames(results_AUC) <- c("Name", "AUC", "Time")
+
+
+results_AUC %>% mutate(Time = as.numeric(Time) / 60, AUC = as.numeric(AUC)) %>% ggplot(aes(x = Time, y = AUC, color = Name))+
+  geom_point(size = 1) + geom_text(aes(label = Name), check_overlap = TRUE) + ggtitle("Full dataset training AUC")
+
+
+
+
+# plot accuracy
+results_Acc <- data.frame(t(sapply(models, function(n){
+  pos_max <- which.max(fits[[n]]$results$Accuracy)
+  c(fits[[n]]$method, fits[[n]]$results$Accuracy[pos_max], fits[[n]]$times$everything["elapsed"])
+})))
+
+colnames(results_Acc) <- c("Name", "Accuracy", "Time")
+
+
+results_Acc %>% mutate(Time = as.numeric(Time) / 60, Accuracy = as.numeric(Accuracy)) %>% ggplot(aes(x = Time, y = Accuracy, color = Name))+
+  geom_point(size = 1) + geom_text(aes(label = Name), check_overlap = TRUE) + ggtitle("Full dataset training Accuracy")
+
+# plot bal accuracy
+results_bal_Acc <- data.frame(t(sapply(models, function(n){
+  pos_max <- which.max(fits[[n]]$results$Mean_Balanced_Accuracy)
+  c(fits[[n]]$method, fits[[n]]$results$Mean_Balanced_Accuracy[pos_max], fits[[n]]$times$everything["elapsed"])
+})))
+
+colnames(results_bal_Acc) <- c("Name", "Mean_Balanced_Accuracy", "Time")
+
+
+results_bal_Acc %>% mutate(Time = as.numeric(Time) / 60, Mean_Balanced_Accuracy = as.numeric(Mean_Balanced_Accuracy)) %>% 
+  ggplot(aes(x = Time, y = Mean_Balanced_Accuracy, color = Name))+
+  geom_point(size = 1) + geom_text(aes(label = Name), check_overlap = TRUE) + ggtitle("Full dataset training Mean_Balanced_Accuracy")
+
+
+
+# plot F1-mean
+results_F1 <- data.frame(t(sapply(models, function(n){
+  pos_max <- which.max(fits[[n]]$results$Mean_F1)
+  c(fits[[n]]$method, fits[[n]]$results$Mean_F1[pos_max], fits[[n]]$times$everything["elapsed"])
+})))
+
+colnames(results_F1) <- c("Name", "Mean_F1", "Time")
+
+
+results_F1 %>% mutate(Time = as.numeric(Time) / 60, Accuracy = as.numeric(Mean_F1)) %>% ggplot(aes(x = Time, y = Accuracy, color = Name))+
+  geom_point(size = 1) + geom_text(aes(label = Name), check_overlap = TRUE) + ggtitle("Full dataset training Mean_F1")
+
 
 # pda, multinom and rf are the best, but rf is very long
 
-
+# plot train ds
 lapply(models, function(model){
-  plot_confusion(fits[[model]]$pred$obs, fits[[model]]$pred$pred, name = paste(model, "full"))
+  plot_confusion(fits[[model]]$pred$obs, fits[[model]]$pred$pred, name = paste(model, "train"))
 })
 
-#plot(fits$rf$finalModel)
 
-# try NN
+#plot validation
+lapply(models, function(model){
+  #pred <- predict(fits$xgbTree, df_validation[1:561])
+  plot_confusion(df_validation$Activity, predict(fits[[model]], df_validation[1:561]), name = paste(model, "validation"))
+})
 
-# if(!require(neuralnet)) install.packages("neuralnet")
-# library(neuralnet)
-# 
-# nn <- neuralnet(Activity ~ ., data = df, hidden = c(250, 100, 25), act.fct = "logistic", linear.output = FALSE)
-# 
-# nn_pred <- compute(nn, df_validation[1:ncol(df_validation)-1])$net.result
-# 
-# labels <- levels(factor(activity_labels$Activity))
-# 
-# pred_label <- data.frame(max.col(nn_pred)) %>%
-#   mutate(prediction = labels[max.col.nn_pred.]) %>%
-#   dplyr::select(2) %>%
-#   unlist()
-# 
-# plot_confusion(pred_label, df_validation$Activity, name = "NN full")
-
-# All have the same problems: Sitting/standing distinguishing and lie_to_sit/lie_to_stand prediction
-
-# keep only standing and sitting and try to classify them
-
-#df_sit_stand <- df %>% filter(Activity %in% c("STANDING", "SITTING")) %>%
-#  mutate(standing = as.factor(ifelse(Activity == "STANDING", 1, 0))) %>% dplyr::select(-Activity)
-
-# df_sit_stand <- df %>% filter(Activity %in% c("STANDING", "SITTING")) %>% mutate(Activity = droplevels(Activity))
-# 
-# 
-# # plot outcomes distribution
-# df_sit_stand %>% group_by(Activity) %>% mutate(n = n()) %>%
-#   ggplot(aes(reorder(Activity, -n))) +
-#   geom_bar(col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
-#   xlab("Activity") + ylab("Count") +
-#   scale_y_continuous(breaks = seq(0,1500,100)) +
-#   ggtitle("Distribution of activities") +
-#   theme_bw() +
-#   theme(axis.text.x=element_text(angle = -60, hjust = 0))
-# 
-# # how many samples of each class in df
-# sort(table(df_sit_stand$Activity),decreasing=TRUE)
-# 
-# # dataset is almost balanced, try feature reduction by correlation
-# 
-# # calculate correlation matrix
-# correlationMatrix <- cor(df_sit_stand[-562])
-# # summarize the correlation matrix
-# #print(correlationMatrix)
-# 
-# if(!require(corrplot)) install.packages("corrplot")
-# library(corrplot)
-# corrplot(correlationMatrix, method = "color", tl.pos='n')
-# # find attributes that are highly corrected (ideally >0.75)
-# highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.75)
-# # print indexes of highly correlated attributes
-# #print(highlyCorrelated)
-# #print(highlyCorrelated2)
-# 
-# # remove highly correlated features
-# df_reduced_75 <- df_sit_stand %>% dplyr::select(-all_of(highlyCorrelated))
-# 
-# corrplot(cor(df_reduced_75 %>% dplyr::select(-Activity)), method = "color", tl.pos='n')
-# 
-# 
-# 
-# # for binary classification we expect less features to be needed. Let's try PCA
-# pca <- prcomp(df_sit_stand[-562], scale = TRUE)
-# 
-# # plot variance explained by each of principal components
-# ggplot(aes(1:length(pca$sdev), (pca$sdev^2 / sum(pca$sdev^2))*100), data = NULL) + geom_col() +
-#   scale_y_continuous(name = "% variance explained", limits = c(0,15)) + xlab("PCs") +
-#   xlim(0, 30) + 
-#   ggtitle("Variance explained by Principal Components")+
-#   theme(plot.title = element_text(hjust = 0.5))
-# 
-# # plot cumulative variance explained by principal components
-# ggplot(aes(1:length(pca$sdev), cumsum(pca$sdev^2 / sum(pca$sdev^2))*100), data = NULL) + 
-#   geom_point(alpha = 0.5, size = 1) +
-#   scale_y_continuous(name = "% variance explained", limits = c(0,100)) + xlab("PCs") +
-#   xlim(0, length(pca$sdev)) + geom_line() +
-#   ggtitle("Cumulative variance explained by Principal Components")+
-#   theme(plot.title = element_text(hjust = 0.5))
-# 
-# plot(pca)
-# 
-# df_sit_stand_pca <- as.data.frame(pca$x[,1:200]) %>% cbind(df_sit_stand[562])
-#   
-# # visualize binary classification of two PC
-# 
-# df_sit_stand_pca %>% ggplot(aes(x = PC1, y = PC4, color = Activity)) +
-#   geom_point()
-# 
-# 
-#   
-# # repeat the same with binary
-# 
-# 
-# 
-# models <- c("kknn", "pda", "slda", "hdda", "knn", "pam", "C5.0Tree", "rf", "pls", "earth", "xgbTree")
-# 
-# #models <- c("knn", "pam", "C5.0Tree", "CSimca", "rf", "pls")
-# 
-# control <- trainControl(method="cv", number=10, classProbs= TRUE, summaryFunction = twoClassSummary, savePredictions = "final",
-#                         verbose = PRINT_DEBUG)
-# 
-# metric <- "ROC"
-# 
-# file_name <- "./models//binary_fits.rds"
-# 
-# 
-# if (1) {
-#   
-#   time_start <- unclass(Sys.time())
-#   
-#   fits <- lapply(models, function(model){ 
-#     print(model)
-#     train(Activity ~ ., data = df_sit_stand, method = model, metric = metric, trControl = control)
-#   }) 
-#   
-#   time_end <- unclass(Sys.time())
-#   
-#   bin_ensemble_total_time <- time_end - time_start
-#   
-#   names(fits) <- models
-#   
-#   # If "models" folder is not exist, create it
-#   if (!dir.exists("./models")) {dir.create("./models")}
-#   # save fits
-#   saveRDS(fits, file_name)
-# } else {
-#   # if file is not found, stop and message. 
-#   if (!file.exists(file_name)) {stop("File not found. Rerun code with RETRAIN = TRUE")} 
-#   # read from file
-#   else {fits <- readRDS(file_name)}
-# }
-# 
-# 
-# #ensemble_total_time/3600  # ~4 hours
-# # print results
-# 
-# results <- data.frame(t(sapply(1:length(models), function(n){
-#   pos_max <- which.max(fits[[n]]$results$ROC)
-#   c(fits[[n]]$method, fits[[n]]$results$ROC[pos_max], fits[[n]]$times$everything["elapsed"])
-# })))
-# 
-# colnames(results) <- c("Name", "ROC", "Time")
-# 
-# 
-# results %>% mutate(Time = as.numeric(Time) / 60, ROC = as.numeric(ROC)) %>% ggplot(aes(x = Time, y = ROC, color = Name))+
-#   geom_point(size = 1) + geom_text(aes(label = Name), check_overlap = TRUE) + ggtitle("Binary df train")
-# 
-# plot_confusion(fits$pda$pred$obs, fits$pda$pred$pred, name = "PDA")
-# plot_confusion(fits$rf$pred$obs, fits$rf$pred$pred, name = "RF")
-# plot_confusion(fits$kknn$pred$obs, fits$kknn$pred$pred, name = "KKNN")
-# plot_confusion(fits$xgbTree$pred$obs, fits$xgbTree$pred$pred, name = "xgbTree")
-
-
-# repeat with reduced dataset
-# 
-# file_name <- "./models//binary_fits_corr_reduced.rds"
-# 
-# 
-# if (1) {
-#   
-#   time_start <- unclass(Sys.time())
-#   
-#   fits <- lapply(models, function(model){ 
-#     print(model)
-#     train(Activity ~ ., data = df_reduced_75, method = model, metric = metric, trControl = control)
-#   }) 
-#   
-#   time_end <- unclass(Sys.time())
-#   
-#   bin_ensemble_total_time <- time_end - time_start
-#   
-#   names(fits) <- models
-#   
-#   # If "models" folder is not exist, create it
-#   if (!dir.exists("./models")) {dir.create("./models")}
-#   # save fits
-#   saveRDS(fits, file_name)
-# } else {
-#   # if file is not found, stop and message. 
-#   if (!file.exists(file_name)) {stop("File not found. Rerun code with RETRAIN = TRUE")} 
-#   # read from file
-#   else {fits <- readRDS(file_name)}
-# }
-# 
-# 
-# #ensemble_total_time/3600  # ~4 hours
-# # print results
-# 
-# results <- data.frame(t(sapply(1:length(models), function(n){
-#   pos_max <- which.max(fits[[n]]$results$ROC)
-#   c(fits[[n]]$method, fits[[n]]$results$ROC[pos_max], fits[[n]]$times$everything["elapsed"])
-# })))
-# 
-# colnames(results) <- c("Name", "ROC", "Time")
-# 
-# 
-# results %>% mutate(Time = as.numeric(Time) / 60, ROC = as.numeric(ROC)) %>% ggplot(aes(x = Time, y = ROC, color = Name))+
-#   geom_point(size = 1) + geom_text(aes(label = Name), check_overlap = TRUE) + ggtitle("Binary df train")
-# 
-# plot_confusion(fits$pda$pred$obs, fits$pda$pred$pred, name = "PDA cor reduced")
-# plot_confusion(fits$rf$pred$obs, fits$rf$pred$pred, name = "RF cor reduced")
-# plot_confusion(fits$kknn$pred$obs, fits$kknn$pred$pred, name = "KKNN cor reduced")
-# plot_confusion(fits$xgbTree$pred$obs, fits$xgbTree$pred$pred, name = "xgbTree cor reduced")
-# 
-# 
-# # and with pca dataset
-# file_name <- "./models//binary_fits_pca.rds"
-# 
-# 
-# if (1) {
-#   
-#   time_start <- unclass(Sys.time())
-#   
-#   fits <- lapply(models, function(model){ 
-#     print(model)
-#     train(Activity ~ ., data = df_sit_stand_pca, method = model, metric = metric, trControl = control)
-#   }) 
-#   
-#   time_end <- unclass(Sys.time())
-#   
-#   bin_ensemble_total_time <- time_end - time_start
-#   
-#   names(fits) <- models
-#   
-#   # If "models" folder is not exist, create it
-#   if (!dir.exists("./models")) {dir.create("./models")}
-#   # save fits
-#   saveRDS(fits, file_name)
-# } else {
-#   # if file is not found, stop and message. 
-#   if (!file.exists(file_name)) {stop("File not found. Rerun code with RETRAIN = TRUE")} 
-#   # read from file
-#   else {fits <- readRDS(file_name)}
-# }
-# 
-# 
-# #ensemble_total_time/3600  # ~4 hours
-# # print results
-# 
-# results <- data.frame(t(sapply(1:length(models), function(n){
-#   pos_max <- which.max(fits[[n]]$results$ROC)
-#   c(fits[[n]]$method, fits[[n]]$results$ROC[pos_max], fits[[n]]$times$everything["elapsed"])
-# })))
-# 
-# colnames(results) <- c("Name", "ROC", "Time")
-# 
-# 
-# results %>% mutate(Time = as.numeric(Time) / 60, ROC = as.numeric(ROC)) %>% ggplot(aes(x = Time, y = ROC, color = Name))+
-#   geom_point(size = 1) + geom_text(aes(label = Name), check_overlap = TRUE) + ggtitle("Binary df train")
-# 
-# plot_confusion(fits$pda$pred$obs, fits$pda$pred$pred, name = "PDA pca")
-# plot_confusion(fits$rf$pred$obs, fits$rf$pred$pred, name = "RF pca")
-# plot_confusion(fits$kknn$pred$obs, fits$kknn$pred$pred, name = "KKNN pca")
-# plot_confusion(fits$xgbTree$pred$obs, fits$xgbTree$pred$pred, name = "xgbTree pca")
-# 
-# 
-# 
-# 
 
