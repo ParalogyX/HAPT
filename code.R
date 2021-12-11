@@ -579,6 +579,7 @@ if(!require(nnet)) install.packages("nnet", dependencies = TRUE)
 if(!require(gbm)) install.packages("gbm", dependencies = TRUE)
 if(!require(xgboost)) install.packages("xgboost", dependencies = TRUE)
 if(!require(randomForest)) install.packages("randomForest", dependencies = TRUE)
+if(!require(parRF)) install.packages("parRF", dependencies = TRUE)
 
 
 library(caret)
@@ -591,7 +592,7 @@ library(nnet)
 library(gbm)
 library(xgboost)
 library(randomForest)
-
+library(parRF)
 
 
 #models <- c("kknn", "pda", "slda", "hdrda", "pam", "multinom", "C5.0Tree", "CSimca", "rf", "pls", "earth", "xgbTree")
