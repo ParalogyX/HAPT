@@ -80,7 +80,7 @@ conflict_prefer("select", "dplyr")
 conflict_prefer("filter", "dplyr")
 
 # Program controls
-RETRAIN <- T       # TRUE: models will be retrained; FALSE: trained models will be loaded from files
+RETRAIN <- F       # TRUE: models will be retrained; FALSE: trained models will be loaded from files
 PRINT_DEBUG <- T   # TRUE: debug information and training functions output will be printed out to the console; 
 #                    FALSE: no or only minimum of debug information will be printed out to the console
 
@@ -579,7 +579,7 @@ if(!require(nnet)) install.packages("nnet", dependencies = TRUE)
 if(!require(gbm)) install.packages("gbm", dependencies = TRUE)
 if(!require(xgboost)) install.packages("xgboost", dependencies = TRUE)
 if(!require(randomForest)) install.packages("randomForest", dependencies = TRUE)
-if(!require(parRF)) install.packages("parRF", dependencies = TRUE)
+if(!require(import)) install.packages("import", dependencies = TRUE)
 
 
 library(caret)
@@ -592,7 +592,7 @@ library(nnet)
 library(gbm)
 library(xgboost)
 library(randomForest)
-library(parRF)
+library(import)
 
 
 #models <- c("kknn", "pda", "slda", "hdrda", "pam", "multinom", "C5.0Tree", "CSimca", "rf", "pls", "earth", "xgbTree")
@@ -604,7 +604,8 @@ models <- c("nb", "kknn", "pda", "multinom", "gbm", "xgbTree", "parRF", "nnet")
 print("bayesglm was excluded, as data not linear at all")
 print("gamboost only for binary")
 
-control <- trainControl(method="cv", number=5, classProbs= TRUE, summaryFunction = multiClassSummary, savePredictions = "final",
+control <- trainControl(method="cv", number=5, classProbs= TRUE, summaryFunction = multiClassSummary, 
+                        savePredictions = "final",
                         verbose = PRINT_DEBUG)
 
 
@@ -721,18 +722,18 @@ results_bal_Acc %>% mutate(Time = as.numeric(Time) / 60, Mean_Balanced_Accuracy 
 
 
 
-# plot F1-mean
-results_F1 <- data.frame(t(sapply(models, function(n){
-  pos_max <- which.max(fits[[n]]$results$Mean_F1)
-  c(fits[[n]]$method, fits[[n]]$results$Mean_F1[pos_max], fits[[n]]$times$everything["elapsed"])
-})))
-
-colnames(results_F1) <- c("Name", "Mean_F1", "Time")
-
-
-results_F1 %>% mutate(Time = as.numeric(Time) / 60, Accuracy = as.numeric(Mean_F1)) %>% ggplot(aes(x = Time, y = Accuracy, color = Name))+
-  geom_point(size = 1) + geom_text(aes(label = Name), check_overlap = TRUE) + ggtitle("Full dataset training Mean_F1")
-
+#plot F1-mean // in gbm is NaN
+# results_F1 <- data.frame(t(sapply(models, function(n){
+#   pos_max <- which.max(fits[[n]]$results$Mean_F1)
+#   c(fits[[n]]$method, fits[[n]]$results$Mean_F1[pos_max], fits[[n]]$times$everything["elapsed"])
+# })))
+# 
+# colnames(results_F1) <- c("Name", "Mean_F1", "Time")
+# 
+# 
+# results_F1 %>% mutate(Time = as.numeric(Time) / 60, Mean_F1 = as.numeric(Mean_F1)) %>% ggplot(aes(x = Time, y = Mean_F1, color = Name))+
+#   geom_point(size = 1) + geom_text(aes(label = Name), check_overlap = TRUE) + ggtitle("Full dataset training Mean_F1")
+# 
 
 # pda, multinom and rf are the best, but rf is very long
 
