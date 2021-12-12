@@ -592,7 +592,7 @@ library(nnet)
 library(gbm)
 library(xgboost)
 library(randomForest)
-library(import)
+#library(import)
 
 
 #models <- c("kknn", "pda", "slda", "hdrda", "pam", "multinom", "C5.0Tree", "CSimca", "rf", "pls", "earth", "xgbTree")
@@ -741,12 +741,37 @@ results_bal_Acc %>% mutate(Time = as.numeric(Time) / 60, Mean_Balanced_Accuracy 
 lapply(models, function(model){
   plot_confusion(fits[[model]]$pred$obs, fits[[model]]$pred$pred, name = paste(model, "train"))
 })
+# 
+# 
+# #plot validation
+# lapply(models, function(model){
+#   #pred <- predict(fits$xgbTree, df_validation[1:561])
+#   plot_confusion(df_validation$Activity, predict(fits[[model]], df_validation[1:561]), name = paste(model, "validation"))
+# })
+# 
+
+xgbTreeGrid <-  expand.grid(nrounds = c(150, 200), 
+                        max_depth = 2, 
+                        eta = 0.3,
+                        gamma = 0,
+                        colsample_bytree = c(0.7, 0.8),
+                        min_child_weight = 1,
+                        subsample = c(0.4, 0.5, 0.6))
+
+# xgbTreeGrid <-  expand.grid(nrounds = c(50, 100, 150, 200, 250), 
+#                             max_depth = c(1,2,3), 
+#                             eta = c(0.2, 0.3, 0.4),
+#                             gamma = c(0, 0.3, 0.5),
+#                             colsample_bytree = c(0.7, 0.8, 0.9),
+#                             min_child_weight = c(0.8, 0.9, 1),
+#                             subsample = c(0.3, 0.4, 0.5, 0.6))
+
+time_start <- unclass(Sys.time())
+xgbFit <- train(Activity ~ ., data = df, method = "xgbTree", metric = metric, trControl = control, tuneGrid = xgbTreeGrid)
+time_end <- unclass(Sys.time())
+
+xgb_time <- time_end - time_start
 
 
-#plot validation
-lapply(models, function(model){
-  #pred <- predict(fits$xgbTree, df_validation[1:561])
-  plot_confusion(df_validation$Activity, predict(fits[[model]], df_validation[1:561]), name = paste(model, "validation"))
-})
-
-
+plot_confusion(xgbFit$pred$obs, xgbFit$pred$pred, name = "xgbTree only train")
+plot_confusion(df_validation$Activity, predict(xgbFit, df_validation[1:561]), name = "xgbTree only val")
