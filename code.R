@@ -80,7 +80,7 @@ conflict_prefer("select", "dplyr")
 conflict_prefer("filter", "dplyr")
 
 # Program controls
-RETRAIN <- F       # TRUE: models will be retrained; FALSE: trained models will be loaded from files
+RETRAIN <- T       # TRUE: models will be retrained; FALSE: trained models will be loaded from files
 PRINT_DEBUG <- T   # TRUE: debug information and training functions output will be printed out to the console; 
 #                    FALSE: no or only minimum of debug information will be printed out to the console
 
@@ -604,15 +604,43 @@ models <- c("nb", "kknn", "pda", "multinom", "gbm", "xgbTree", "parRF", "nnet")
 print("bayesglm was excluded, as data not linear at all")
 print("gamboost only for binary")
 
-control <- trainControl(method="cv", number=5, classProbs= TRUE, summaryFunction = multiClassSummary, 
+control <- trainControl(method="boot", classProbs= TRUE, summaryFunction = multiClassSummary, 
                         savePredictions = "final",
                         verbose = PRINT_DEBUG)
 
 
 metric <- "Mean_Balanced_Accuracy"
 
-file_name <- "./models//all_models_auto.rds"
 
+# https://www.edureka.co/blog/naive-bayes-in-r/
+# https://cran.r-project.org/web/packages/klaR/klaR.pdf
+# train Naive Bayes
+file_name <- "./models//NB.rds"
+
+nbGrid <-  expand.grid(usekernel = TRUE,
+                       fL = seq(0,5,0.5), # Laplace
+                       adjust = seq(0,5,0.5)) # Bandwidth
+if (RETRAIN) {
+  time_start <- unclass(Sys.time())
+  fit_nb <- train(Activity ~ ., data = df, method = "nb", metric = metric, 
+                  trControl = control, tuneGrid = nbGrid)
+  time_end <- unclass(Sys.time())
+  nb_time <- time_end - time_start
+  # If "models" folder is not exist, create it
+  if (!dir.exists("./models")) {dir.create("./models")}
+  # save fits
+  saveRDS(fit_nb, file_name)
+} else {
+  # if file is not found, stop and message. 
+  if (!file.exists(file_name)) {stop("File not found. Rerun code with RETRAIN = TRUE")} 
+  # read from file
+  else {fit_nb <- readRDS(file_name)}
+}
+
+plot_confusion(fit_nb$pred$obs, fit_nb$pred$pred, name = "NB only train")
+plot_confusion(fit_nb$Activity, predict(fit_nb, df_validation[1:561]), name = "NB only val")
+
+stop("stop training VPE")
 # df_smote <- UBL::SmoteClassif(Activity ~ ., dat = df)
 # # plot outcomes distribution
 # df_smote %>% group_by(Activity) %>% mutate(n = n()) %>%
@@ -634,8 +662,8 @@ file_name <- "./models//all_models_auto.rds"
 if (RETRAIN) {
 
   time_start <- unclass(Sys.time())
-  
-  fits <- lapply(models, function(model){ 
+
+  fits <- lapply(models, function(model){
     print(model)
     if (model %in% c("multinom", "nnet")) {
       train(Activity ~ ., data = df, method = model, metric = metric, trControl = control, MaxNWts = 15000)
@@ -645,12 +673,12 @@ if (RETRAIN) {
     else {
       train(Activity ~ ., data = df, method = model, metric = metric, trControl = control)
     }
-  }) 
-  
+  })
+
   time_end <- unclass(Sys.time())
-  
+
   all_total_time <- time_end - time_start
-  
+
   names(fits) <- models
 
   # If "models" folder is not exist, create it
@@ -658,8 +686,8 @@ if (RETRAIN) {
   # save fits
   saveRDS(fits, file_name)
 } else {
-    # if file is not found, stop and message. 
-    if (!file.exists(file_name)) {stop("File not found. Rerun code with RETRAIN = TRUE")} 
+    # if file is not found, stop and message.
+    if (!file.exists(file_name)) {stop("File not found. Rerun code with RETRAIN = TRUE")}
     # read from file
     else {fits <- readRDS(file_name)}
 }
