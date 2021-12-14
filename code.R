@@ -615,32 +615,41 @@ metric <- "Mean_Balanced_Accuracy"
 # https://www.edureka.co/blog/naive-bayes-in-r/
 # https://cran.r-project.org/web/packages/klaR/klaR.pdf
 # train Naive Bayes
-file_name <- "./models//NB.rds"
+file_name <- "./models//pda.rds"
 
-nbGrid <-  expand.grid(usekernel = TRUE,
-                       fL = seq(0,5,0.5), # Laplace
-                       adjust = seq(0,5,0.5)) # Bandwidth
+nbGrid <-  expand.grid(usekernel = FALSE,
+                       fL = seq(0,2,0.5), # Laplace
+                       adjust = seq(0,2,0.5)) # Bandwidth
+pdaGrid <- expand.grid(lambda = seq(0.001, 1, 0.02))
+
 if (RETRAIN) {
   time_start <- unclass(Sys.time())
-  fit_nb <- train(Activity ~ ., data = df, method = "nb", metric = metric, 
-                  trControl = control, tuneGrid = nbGrid)
+  #fit_nb <- train(Activity ~ ., data = df, method = "nb", metric = metric, 
+                  # trControl = control, tuneGrid = nbGrid)
+  fit_pda <- train(Activity ~ ., data = df, method = "pda", metric = metric, 
+                trControl = control, tuneGrid = pdaGrid)
   time_end <- unclass(Sys.time())
-  nb_time <- time_end - time_start
+  #nb_time <- time_end - time_start
+  pda_time <- time_end - time_start
   # If "models" folder is not exist, create it
   if (!dir.exists("./models")) {dir.create("./models")}
   # save fits
-  saveRDS(fit_nb, file_name)
+  saveRDS(fit_pda, file_name)
 } else {
   # if file is not found, stop and message. 
   if (!file.exists(file_name)) {stop("File not found. Rerun code with RETRAIN = TRUE")} 
   # read from file
-  else {fit_nb <- readRDS(file_name)}
+  else {fit_pda <- readRDS(file_name)}
 }
 
-plot_confusion(fit_nb$pred$obs, fit_nb$pred$pred, name = "NB only train")
-plot_confusion(fit_nb$Activity, predict(fit_nb, df_validation[1:561]), name = "NB only val")
+plot_confusion(fit_pda$pred$obs, fit_pda$pred$pred, name = "PDA only train")
+plot_confusion(df_validation$Activity, predict(fit_pda, df_validation[1:561]), name = "PDA only val")
 
 stop("stop training VPE")
+
+plot_confusion(fit_nb$pred$obs, fit_nb$pred$pred, name = "NB only train")
+plot_confusion(df_validation$Activity, predict(fit_nb, df_validation[1:561]), name = "NB only val")
+
 # df_smote <- UBL::SmoteClassif(Activity ~ ., dat = df)
 # # plot outcomes distribution
 # df_smote %>% group_by(Activity) %>% mutate(n = n()) %>%
