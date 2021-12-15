@@ -33,6 +33,8 @@ if(!require(tidyverse)) install.packages("tidyverse")
 if(!require(gridExtra)) install.packages("gridExtra")
 if(!require(grid)) install.packages("grid")
 if(!require(conflicted)) install.packages("conflicted")
+if(!require(UBL)) install.packages("UBL")
+
 
 # for training
 # if(!require(caret)) install.packages("caret")
@@ -53,6 +55,7 @@ library(tidyverse)
 library(gridExtra)
 library(grid)
 library(conflicted)
+library(UBL)
 
 # library(caret)
 # library(kknn)
@@ -357,7 +360,7 @@ rm(dummy_plot, legend, low_5_df, trends, low_5, features_stat)
 
 
 # Apply SMOTE before PCA
-df_smote <- UBL::SmoteClassif(Activity ~ ., dat = df)
+df_smote <- SmoteClassif(Activity ~ ., dat = df)
 # plot outcomes distribution
 df_smote %>% group_by(Activity) %>% mutate(n = n()) %>%
   ggplot(aes(reorder(Activity, -n))) +
@@ -645,162 +648,162 @@ metric <- "Mean_Balanced_Accuracy"
 # http://chakkrit.com/assets/papers/tantithamthavorn2017optimization.pdf
 
 # train PDA
-file_name <- "./models//pda.rds"
-
-# nbGrid <-  expand.grid(usekernel = FALSE,
-#                        fL = seq(0,2,0.5), # Laplace
-#                        adjust = seq(0,2,0.5)) # Bandwidth
-# pdaGrid <- expand.grid(lambda = seq(0.001, 0.1, 0.002))
-
-if (RETRAIN) {
-  time_start <- unclass(Sys.time())
-  fit_pda <- train(Activity ~ ., data = df_pca_or, method = "pda", metric = metric,
-                trControl = control)
-  time_end <- unclass(Sys.time())
-  pda_time <- time_end - time_start
-  # If "models" folder is not exist, create it
-  if (!dir.exists("./models")) {dir.create("./models")}
-  # save fits
-  saveRDS(fit_pda, file_name)
-} else {
-  # if file is not found, stop and message.
-  if (!file.exists(file_name)) {
-    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-    stop("File not found. Rerun code with RETRAIN = TRUE")
-    }
-  # read from file
-  else {fit_pda <- readRDS(file_name)}
-}
-
-plot_confusion(fit_pda$pred$obs, fit_pda$pred$pred, name = "PDA only train")
-
-x_valid <- as.data.frame(predict(pca, newdata = df_validation[1:561]))[1:100]
-y_valid <- df_validation$Activity
-plot_confusion(y_valid, predict(fit_pda, x_valid), name = "PDA only val")
-
-# plot metrics vs lambda
-fit_pda$results %>% ggplot(aes(x = lambda, y = Mean_Balanced_Accuracy)) +
-  geom_line()
-
+# file_name <- "./models//pda.rds"
+# 
+# # nbGrid <-  expand.grid(usekernel = FALSE,
+# #                        fL = seq(0,2,0.5), # Laplace
+# #                        adjust = seq(0,2,0.5)) # Bandwidth
+# # pdaGrid <- expand.grid(lambda = seq(0.001, 0.1, 0.002))
+# 
+# if (RETRAIN) {
+#   time_start <- unclass(Sys.time())
+#   fit_pda <- train(Activity ~ ., data = df_pca_or, method = "pda", metric = metric,
+#                 trControl = control)
+#   time_end <- unclass(Sys.time())
+#   pda_time <- time_end - time_start
+#   # If "models" folder is not exist, create it
+#   if (!dir.exists("./models")) {dir.create("./models")}
+#   # save fits
+#   saveRDS(fit_pda, file_name)
+# } else {
+#   # if file is not found, stop and message.
+#   if (!file.exists(file_name)) {
+#     # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+#     #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+#     stop("File not found. Rerun code with RETRAIN = TRUE")
+#     }
+#   # read from file
+#   else {fit_pda <- readRDS(file_name)}
+# }
+# 
+# plot_confusion(fit_pda$pred$obs, fit_pda$pred$pred, name = "PDA only train")
+# 
+# x_valid <- as.data.frame(predict(pca, newdata = df_validation[1:561]))[1:100]
+# y_valid <- df_validation$Activity
+# plot_confusion(y_valid, predict(fit_pda, x_valid), name = "PDA only val")
+# 
+# # plot metrics vs lambda
+# fit_pda$results %>% ggplot(aes(x = lambda, y = Mean_Balanced_Accuracy)) +
+#   geom_line()
+# 
+# # 
+# # 
+# # 
+# # 
+# # Try multinom
+# file_name <- "./models//multinom.rds"
+# #multinomGrid <- expand.grid(decay = seq(0, 1, by = 0.1))
+# #multinomGrid <- expand.grid(decay = seq(1.4, 2.0, by = 0.15))
+# if (RETRAIN) {
+#   time_start <- unclass(Sys.time())
+#   #fit_nb <- train(Activity ~ ., data = df, method = "nb", metric = metric,
+#   # trControl = control, tuneGrid = nbGrid)
+#   fit_multinom <- train(Activity ~ ., data = df_pca_or, method = "multinom", metric = metric,
+#                    trControl = control, MaxNWts = 15000)
+#   time_end <- unclass(Sys.time())
+#   #nb_time <- time_end - time_start
+#   multinom_time <- time_end - time_start
+#   # If "models" folder is not exist, create it
+#   if (!dir.exists("./models")) {dir.create("./models")}
+#   # save fits
+#   saveRDS(fit_multinom, file_name)
+# } else {
+#   # if file is not found, stop and message.
+#   if (!file.exists(file_name)) {
+#     # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+#     #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+#     stop("File not found. Rerun code with RETRAIN = TRUE")
+#   }
+#   # read from file
+#   else {fit_multinom <- readRDS(file_name)}
+# }
+# 
+# plot_confusion(fit_multinom$pred$obs, fit_multinom$pred$pred, name = "Multinom only train")
+# 
+# x_valid <- as.data.frame(predict(pca, newdata = df_validation[1:561]))[1:100]
+# y_valid <- df_validation$Activity
+# plot_confusion(y_valid, predict(fit_multinom, x_valid), name = "Multinom only val")
+# 
+# # plot metrics vs decay
+# fit_multinom$results %>% ggplot(aes(x = decay, y = Mean_Balanced_Accuracy)) +
+#   geom_line()
+# 
+# 
+# # http://chakkrit.com/assets/papers/tantithamthavorn2017optimization.pdf
+# 
+# # Try knn
+# file_name <- "./models//knn.rds"
+# if (RETRAIN) {
+#   time_start <- unclass(Sys.time())
+#   fit_knn <- train(Activity ~ ., data = df_pca_or, method = "knn", metric = metric,
+#                         trControl = control)
+#   time_end <- unclass(Sys.time())
+#   #nb_time <- time_end - time_start
+#   knn_time <- time_end - time_start
+#   # If "models" folder is not exist, create it
+#   if (!dir.exists("./models")) {dir.create("./models")}
+#   # save fits
+#   saveRDS(fit_knn, file_name)
+# } else {
+#   # if file is not found, stop and message.
+#   if (!file.exists(file_name)) {
+#     # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+#     #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+#     stop("File not found. Rerun code with RETRAIN = TRUE")
+#   }
+#   # read from file
+#   else {fit_knn <- readRDS(file_name)}
+# }
+# 
+# plot_confusion(fit_knn$pred$obs, fit_knn$pred$pred, name = "Knn only train")
+# 
+# x_valid <- as.data.frame(predict(pca, newdata = df_validation[1:561]))[1:100]
+# y_valid <- df_validation$Activity
+# plot_confusion(y_valid, predict(fit_knn, x_valid), name = "Knn only val")
+# 
+# # plot metrics vs decay
+# fit_knn$results %>% ggplot(aes(x = k, y = Mean_Balanced_Accuracy)) +
+#   geom_line()
 # 
 # 
 # 
+# # Try xgbTree
+# file_name <- "./models//xgbTree.rds"
+# if (RETRAIN) {
+#   time_start <- unclass(Sys.time())
+#   fit_xgbTree <- train(Activity ~ ., data = df_pca_or, method = "xgbTree", metric = metric,
+#                    trControl = control)
+#   time_end <- unclass(Sys.time())
+#   #nb_time <- time_end - time_start
+#   xgbTree_time <- time_end - time_start
+#   # If "models" folder is not exist, create it
+#   if (!dir.exists("./models")) {dir.create("./models")}
+#   # save fits
+#   saveRDS(fit_xgbTree, file_name)
+# } else {
+#   # if file is not found, stop and message.
+#   if (!file.exists(file_name)) {
+#     # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+#     #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+#     stop("File not found. Rerun code with RETRAIN = TRUE")
+#   }
+#   # read from file
+#   else {fit_xgbTree <- readRDS(file_name)}
+# }
 # 
-# Try multinom
-file_name <- "./models//multinom.rds"
-#multinomGrid <- expand.grid(decay = seq(0, 1, by = 0.1))
-#multinomGrid <- expand.grid(decay = seq(1.4, 2.0, by = 0.15))
-if (RETRAIN) {
-  time_start <- unclass(Sys.time())
-  #fit_nb <- train(Activity ~ ., data = df, method = "nb", metric = metric,
-  # trControl = control, tuneGrid = nbGrid)
-  fit_multinom <- train(Activity ~ ., data = df_pca_or, method = "multinom", metric = metric,
-                   trControl = control, MaxNWts = 15000)
-  time_end <- unclass(Sys.time())
-  #nb_time <- time_end - time_start
-  multinom_time <- time_end - time_start
-  # If "models" folder is not exist, create it
-  if (!dir.exists("./models")) {dir.create("./models")}
-  # save fits
-  saveRDS(fit_multinom, file_name)
-} else {
-  # if file is not found, stop and message.
-  if (!file.exists(file_name)) {
-    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-    stop("File not found. Rerun code with RETRAIN = TRUE")
-  }
-  # read from file
-  else {fit_multinom <- readRDS(file_name)}
-}
-
-plot_confusion(fit_multinom$pred$obs, fit_multinom$pred$pred, name = "Multinom only train")
-
-x_valid <- as.data.frame(predict(pca, newdata = df_validation[1:561]))[1:100]
-y_valid <- df_validation$Activity
-plot_confusion(y_valid, predict(fit_multinom, x_valid), name = "Multinom only val")
-
-# plot metrics vs decay
-fit_multinom$results %>% ggplot(aes(x = decay, y = Mean_Balanced_Accuracy)) +
-  geom_line()
-
-
-# http://chakkrit.com/assets/papers/tantithamthavorn2017optimization.pdf
-
-# Try knn
-file_name <- "./models//knn.rds"
-if (RETRAIN) {
-  time_start <- unclass(Sys.time())
-  fit_knn <- train(Activity ~ ., data = df_pca_or, method = "knn", metric = metric,
-                        trControl = control)
-  time_end <- unclass(Sys.time())
-  #nb_time <- time_end - time_start
-  knn_time <- time_end - time_start
-  # If "models" folder is not exist, create it
-  if (!dir.exists("./models")) {dir.create("./models")}
-  # save fits
-  saveRDS(fit_knn, file_name)
-} else {
-  # if file is not found, stop and message.
-  if (!file.exists(file_name)) {
-    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-    stop("File not found. Rerun code with RETRAIN = TRUE")
-  }
-  # read from file
-  else {fit_knn <- readRDS(file_name)}
-}
-
-plot_confusion(fit_knn$pred$obs, fit_knn$pred$pred, name = "Knn only train")
-
-x_valid <- as.data.frame(predict(pca, newdata = df_validation[1:561]))[1:100]
-y_valid <- df_validation$Activity
-plot_confusion(y_valid, predict(fit_knn, x_valid), name = "Knn only val")
-
-# plot metrics vs decay
-fit_knn$results %>% ggplot(aes(x = k, y = Mean_Balanced_Accuracy)) +
-  geom_line()
-
-
-
-# Try xgbTree
-file_name <- "./models//xgbTree.rds"
-if (RETRAIN) {
-  time_start <- unclass(Sys.time())
-  fit_xgbTree <- train(Activity ~ ., data = df_pca_or, method = "xgbTree", metric = metric,
-                   trControl = control)
-  time_end <- unclass(Sys.time())
-  #nb_time <- time_end - time_start
-  xgbTree_time <- time_end - time_start
-  # If "models" folder is not exist, create it
-  if (!dir.exists("./models")) {dir.create("./models")}
-  # save fits
-  saveRDS(fit_xgbTree, file_name)
-} else {
-  # if file is not found, stop and message.
-  if (!file.exists(file_name)) {
-    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-    stop("File not found. Rerun code with RETRAIN = TRUE")
-  }
-  # read from file
-  else {fit_xgbTree <- readRDS(file_name)}
-}
-
-plot_confusion(fit_xgbTree$pred$obs, fit_xgbTree$pred$pred, name = "xgbTree only train")
-
-x_valid <- as.data.frame(predict(pca, newdata = df_validation[1:561]))[1:100]
-y_valid <- df_validation$Activity
-plot_confusion(y_valid, predict(fit_xgbTree, x_valid), name = "xgbTree only val")
-
-# plot metrics vs decay
-fit_xgbTree$results %>% ggplot(aes(x = eta, y = Mean_Balanced_Accuracy)) +
-  geom_line()
-
-
-stop("stop training VPE")
+# plot_confusion(fit_xgbTree$pred$obs, fit_xgbTree$pred$pred, name = "xgbTree only train")
 # 
+# x_valid <- as.data.frame(predict(pca, newdata = df_validation[1:561]))[1:100]
+# y_valid <- df_validation$Activity
+# plot_confusion(y_valid, predict(fit_xgbTree, x_valid), name = "xgbTree only val")
+# 
+# # plot metrics vs decay
+# fit_xgbTree$results %>% ggplot(aes(x = eta, y = Mean_Balanced_Accuracy)) +
+#   geom_line()
+# 
+# 
+# stop("stop training VPE")
+# # 
 # plot_confusion(fit_nb$pred$obs, fit_nb$pred$pred, name = "NB only train")
 # plot_confusion(df_validation$Activity, predict(fit_nb, df_validation[1:561]), name = "NB only val")
 # 
@@ -829,12 +832,12 @@ if (RETRAIN) {
   fits <- lapply(models, function(model){
     print(model)
     if (model %in% c("multinom", "nnet")) {
-      train(Activity ~ ., data = df, method = model, metric = metric, trControl = control, MaxNWts = 15000)
+      train(Activity ~ ., data = df_pca_or, method = model, metric = metric, trControl = control, MaxNWts = 15000)
     } else if(model == "gbm") {
-      train(Activity ~ ., data = df, method = model, metric = metric, trControl = control, train.fraction = 0.5)
+      train(Activity ~ ., data = df_pca_or, method = model, metric = metric, trControl = control, train.fraction = 0.5)
     }
     else {
-      train(Activity ~ ., data = df, method = model, metric = metric, trControl = control)
+      train(Activity ~ ., data = df_pca_or, method = model, metric = metric, trControl = control)
     }
   })
 
@@ -940,7 +943,7 @@ lapply(models, function(model){
 #   plot_confusion(df_validation$Activity, predict(fits[[model]], df_validation[1:561]), name = paste(model, "validation"))
 # })
 # 
-
+stop("stop training VPE")
 xgbTreeGrid <-  expand.grid(nrounds = c(150, 200), 
                         max_depth = 2, 
                         eta = 0.3,
