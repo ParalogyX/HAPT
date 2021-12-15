@@ -356,11 +356,27 @@ rm(dummy_plot, legend, low_5_df, trends, low_5, features_stat)
 
 
 
+# Apply SMOTE before PCA
+df_smote <- UBL::SmoteClassif(Activity ~ ., dat = df)
+# plot outcomes distribution
+df_smote %>% group_by(Activity) %>% mutate(n = n()) %>%
+  ggplot(aes(reorder(Activity, -n))) +
+  geom_bar(col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) +
+  xlab("Activity") + ylab("Count") +
+  scale_y_continuous(breaks = seq(0,1500,100)) +
+  ggtitle("Distribution of activities after SMOTE is applied") +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle = -60, hjust = 0))
+
+# how many samples of each class in df
+sort(table(df_smote$Activity),decreasing=TRUE)
+
+
 # visualization with PCA
 
-pca <- prcomp(df[-ncol(df)], scale. = TRUE)
+pca <- prcomp(df_smote[-ncol(df_smote)], scale. = TRUE)
 
-var_explained <- data.frame(PC= paste0("PC",1:(ncol(df)-1)),
+var_explained <- data.frame(PC= paste0("PC",1:(ncol(df_smote)-1)),
                             var_explained=(pca$sdev)^2/sum((pca$sdev)^2))
 
 var_explained[1:20,] %>%
@@ -372,11 +388,12 @@ var_explained[1:20,] %>%
   theme(plot.title = element_text(hjust = 0.0))
 
 
-var_explained[1:100,] %>%
+var_explained[1:400,] %>%
   ggplot(aes(x=as.numeric(factor(PC, levels = PC)), y=cumsum(var_explained * 100), group = 1)) +
   geom_point(alpha = 0.5, size = 1) +
   geom_line() +
   xlab("Principal component") + ylab("% of variance explained") +
+  scale_y_continuous(breaks = seq(30, 100, 5)) +
   #scale_x_discrete(labels = c(1, 50, 100)) + 
   ggtitle("Cumulative variance explained by Principal Components") +
   theme_bw() +
@@ -384,7 +401,7 @@ var_explained[1:100,] %>%
 
 
 # plot with two first PC's
-df_pca <- as.data.frame(pca$x) %>% cbind(df[ncol(df)])
+df_pca <- as.data.frame(pca$x) %>% cbind(df_smote[ncol(df_smote)])
 
 # visualize  classification of two PC
 
@@ -556,7 +573,15 @@ invisible(legend <- g_legend(dummy_plot))
 
 grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(10, 1),  top = textGrob("Postural transitions on PC's 9-16", x = 0.023, hjust = 0))
 
-rm(p1, p2, p3, p4, dummy_plot, legend, df_pca, pca, var_explained)
+#rm(p1, p2, p3, p4, dummy_plot, legend, df_pca, pca, var_explained)
+rm(p1, p2, p3, p4, dummy_plot, legend)
+
+
+# apply the same pca to non SMOTE df
+# keep 200 features from df_pca
+df_pca_or <- as.data.frame(predict(pca, newdata = df[1:561]))
+df_pca_or <- df_pca_or[1:100] %>% cbind(df[562])
+
 
 
 ###########################################################
@@ -598,7 +623,7 @@ library(randomForest)
 #models <- c("kknn", "pda", "slda", "hdrda", "pam", "multinom", "C5.0Tree", "CSimca", "rf", "pls", "earth", "xgbTree")
 #models <- c("pcaNNet", "kknn", "pda", "multinom", "xgbTree", "C5.0Tree")
 #models <- c("kknn", "pda")
-models <- c("nb", "kknn", "pda", "multinom", "gbm", "xgbTree", "parRF", "nnet")
+models <- c("kknn", "pda", "multinom", "gbm", "xgbTree", "parRF", "nnet")
 
 
 print("bayesglm was excluded, as data not linear at all")
@@ -606,67 +631,196 @@ print("gamboost only for binary")
 
 control <- trainControl(method="boot", classProbs= TRUE, summaryFunction = multiClassSummary, 
                         savePredictions = "final",
+                        search="grid",
                         verbose = PRINT_DEBUG)
 
 
 metric <- "Mean_Balanced_Accuracy"
 
+#https://uwspace.uwaterloo.ca/bitstream/handle/10012/10521/Liao_Renfang.pdf?sequence=1
 
 # https://www.edureka.co/blog/naive-bayes-in-r/
 # https://cran.r-project.org/web/packages/klaR/klaR.pdf
-# train Naive Bayes
+
+# http://chakkrit.com/assets/papers/tantithamthavorn2017optimization.pdf
+
+# train PDA
 file_name <- "./models//pda.rds"
 
-nbGrid <-  expand.grid(usekernel = FALSE,
-                       fL = seq(0,2,0.5), # Laplace
-                       adjust = seq(0,2,0.5)) # Bandwidth
-pdaGrid <- expand.grid(lambda = seq(0.001, 1, 0.02))
+# nbGrid <-  expand.grid(usekernel = FALSE,
+#                        fL = seq(0,2,0.5), # Laplace
+#                        adjust = seq(0,2,0.5)) # Bandwidth
+# pdaGrid <- expand.grid(lambda = seq(0.001, 0.1, 0.002))
 
 if (RETRAIN) {
   time_start <- unclass(Sys.time())
-  #fit_nb <- train(Activity ~ ., data = df, method = "nb", metric = metric, 
-                  # trControl = control, tuneGrid = nbGrid)
-  fit_pda <- train(Activity ~ ., data = df, method = "pda", metric = metric, 
-                trControl = control, tuneGrid = pdaGrid)
+  fit_pda <- train(Activity ~ ., data = df_pca_or, method = "pda", metric = metric,
+                trControl = control)
   time_end <- unclass(Sys.time())
-  #nb_time <- time_end - time_start
   pda_time <- time_end - time_start
   # If "models" folder is not exist, create it
   if (!dir.exists("./models")) {dir.create("./models")}
   # save fits
   saveRDS(fit_pda, file_name)
 } else {
-  # if file is not found, stop and message. 
-  if (!file.exists(file_name)) {stop("File not found. Rerun code with RETRAIN = TRUE")} 
+  # if file is not found, stop and message.
+  if (!file.exists(file_name)) {
+    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+    stop("File not found. Rerun code with RETRAIN = TRUE")
+    }
   # read from file
   else {fit_pda <- readRDS(file_name)}
 }
 
 plot_confusion(fit_pda$pred$obs, fit_pda$pred$pred, name = "PDA only train")
-plot_confusion(df_validation$Activity, predict(fit_pda, df_validation[1:561]), name = "PDA only val")
+
+x_valid <- as.data.frame(predict(pca, newdata = df_validation[1:561]))[1:100]
+y_valid <- df_validation$Activity
+plot_confusion(y_valid, predict(fit_pda, x_valid), name = "PDA only val")
+
+# plot metrics vs lambda
+fit_pda$results %>% ggplot(aes(x = lambda, y = Mean_Balanced_Accuracy)) +
+  geom_line()
+
+# 
+# 
+# 
+# 
+# Try multinom
+file_name <- "./models//multinom.rds"
+#multinomGrid <- expand.grid(decay = seq(0, 1, by = 0.1))
+#multinomGrid <- expand.grid(decay = seq(1.4, 2.0, by = 0.15))
+if (RETRAIN) {
+  time_start <- unclass(Sys.time())
+  #fit_nb <- train(Activity ~ ., data = df, method = "nb", metric = metric,
+  # trControl = control, tuneGrid = nbGrid)
+  fit_multinom <- train(Activity ~ ., data = df_pca_or, method = "multinom", metric = metric,
+                   trControl = control, MaxNWts = 15000)
+  time_end <- unclass(Sys.time())
+  #nb_time <- time_end - time_start
+  multinom_time <- time_end - time_start
+  # If "models" folder is not exist, create it
+  if (!dir.exists("./models")) {dir.create("./models")}
+  # save fits
+  saveRDS(fit_multinom, file_name)
+} else {
+  # if file is not found, stop and message.
+  if (!file.exists(file_name)) {
+    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+    stop("File not found. Rerun code with RETRAIN = TRUE")
+  }
+  # read from file
+  else {fit_multinom <- readRDS(file_name)}
+}
+
+plot_confusion(fit_multinom$pred$obs, fit_multinom$pred$pred, name = "Multinom only train")
+
+x_valid <- as.data.frame(predict(pca, newdata = df_validation[1:561]))[1:100]
+y_valid <- df_validation$Activity
+plot_confusion(y_valid, predict(fit_multinom, x_valid), name = "Multinom only val")
+
+# plot metrics vs decay
+fit_multinom$results %>% ggplot(aes(x = decay, y = Mean_Balanced_Accuracy)) +
+  geom_line()
+
+
+# http://chakkrit.com/assets/papers/tantithamthavorn2017optimization.pdf
+
+# Try knn
+file_name <- "./models//knn.rds"
+if (RETRAIN) {
+  time_start <- unclass(Sys.time())
+  fit_knn <- train(Activity ~ ., data = df_pca_or, method = "knn", metric = metric,
+                        trControl = control)
+  time_end <- unclass(Sys.time())
+  #nb_time <- time_end - time_start
+  knn_time <- time_end - time_start
+  # If "models" folder is not exist, create it
+  if (!dir.exists("./models")) {dir.create("./models")}
+  # save fits
+  saveRDS(fit_knn, file_name)
+} else {
+  # if file is not found, stop and message.
+  if (!file.exists(file_name)) {
+    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+    stop("File not found. Rerun code with RETRAIN = TRUE")
+  }
+  # read from file
+  else {fit_knn <- readRDS(file_name)}
+}
+
+plot_confusion(fit_knn$pred$obs, fit_knn$pred$pred, name = "Knn only train")
+
+x_valid <- as.data.frame(predict(pca, newdata = df_validation[1:561]))[1:100]
+y_valid <- df_validation$Activity
+plot_confusion(y_valid, predict(fit_knn, x_valid), name = "Knn only val")
+
+# plot metrics vs decay
+fit_knn$results %>% ggplot(aes(x = k, y = Mean_Balanced_Accuracy)) +
+  geom_line()
+
+
+
+# Try xgbTree
+file_name <- "./models//xgbTree.rds"
+if (RETRAIN) {
+  time_start <- unclass(Sys.time())
+  fit_xgbTree <- train(Activity ~ ., data = df_pca_or, method = "xgbTree", metric = metric,
+                   trControl = control)
+  time_end <- unclass(Sys.time())
+  #nb_time <- time_end - time_start
+  xgbTree_time <- time_end - time_start
+  # If "models" folder is not exist, create it
+  if (!dir.exists("./models")) {dir.create("./models")}
+  # save fits
+  saveRDS(fit_xgbTree, file_name)
+} else {
+  # if file is not found, stop and message.
+  if (!file.exists(file_name)) {
+    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+    stop("File not found. Rerun code with RETRAIN = TRUE")
+  }
+  # read from file
+  else {fit_xgbTree <- readRDS(file_name)}
+}
+
+plot_confusion(fit_xgbTree$pred$obs, fit_xgbTree$pred$pred, name = "xgbTree only train")
+
+x_valid <- as.data.frame(predict(pca, newdata = df_validation[1:561]))[1:100]
+y_valid <- df_validation$Activity
+plot_confusion(y_valid, predict(fit_xgbTree, x_valid), name = "xgbTree only val")
+
+# plot metrics vs decay
+fit_xgbTree$results %>% ggplot(aes(x = eta, y = Mean_Balanced_Accuracy)) +
+  geom_line()
+
 
 stop("stop training VPE")
-
-plot_confusion(fit_nb$pred$obs, fit_nb$pred$pred, name = "NB only train")
-plot_confusion(df_validation$Activity, predict(fit_nb, df_validation[1:561]), name = "NB only val")
-
-# df_smote <- UBL::SmoteClassif(Activity ~ ., dat = df)
-# # plot outcomes distribution
-# df_smote %>% group_by(Activity) %>% mutate(n = n()) %>%
-#   ggplot(aes(reorder(Activity, -n))) +
-#   geom_bar(col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
-#   xlab("Activity") + ylab("Count") +
-#   scale_y_continuous(breaks = seq(0,1500,100)) +
-#   ggtitle("Distribution of activities after SMOTE is applied") +
-#   theme_bw() +
-#   theme(axis.text.x=element_text(angle = -60, hjust = 0))
 # 
-# # how many samples of each class in df
-# sort(table(df_smote$Activity),decreasing=TRUE)
-
-
-#df <- sample_n(df, 200)
-#df$Activity <- droplevels(df$Activity)
+# plot_confusion(fit_nb$pred$obs, fit_nb$pred$pred, name = "NB only train")
+# plot_confusion(df_validation$Activity, predict(fit_nb, df_validation[1:561]), name = "NB only val")
+# 
+# # df_smote <- UBL::SmoteClassif(Activity ~ ., dat = df)
+# # # plot outcomes distribution
+# # df_smote %>% group_by(Activity) %>% mutate(n = n()) %>%
+# #   ggplot(aes(reorder(Activity, -n))) +
+# #   geom_bar(col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
+# #   xlab("Activity") + ylab("Count") +
+# #   scale_y_continuous(breaks = seq(0,1500,100)) +
+# #   ggtitle("Distribution of activities after SMOTE is applied") +
+# #   theme_bw() +
+# #   theme(axis.text.x=element_text(angle = -60, hjust = 0))
+# # 
+# # # how many samples of each class in df
+# # sort(table(df_smote$Activity),decreasing=TRUE)
+# 
+# 
+# #df <- sample_n(df, 200)
+# #df$Activity <- droplevels(df$Activity)
 
 if (RETRAIN) {
 
