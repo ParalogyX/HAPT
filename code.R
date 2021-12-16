@@ -83,7 +83,7 @@ conflict_prefer("select", "dplyr")
 conflict_prefer("filter", "dplyr")
 
 # Program controls
-RETRAIN <- F       # TRUE: models will be retrained; FALSE: trained models will be loaded from files
+RETRAIN <- T       # TRUE: models will be retrained; FALSE: trained models will be loaded from files
 PRINT_DEBUG <- T   # TRUE: debug information and training functions output will be printed out to the console; 
 #                    FALSE: no or only minimum of debug information will be printed out to the console
 
@@ -858,12 +858,6 @@ if (RETRAIN) {
 }
 
 models <- c("kknn", "pda", "multinom", "gbm", "xgbTree", "parRF", "nnet")
-fits <- c(kknn = fit_kknn, pda = fit_pda, multinom = fit_multinom, 
-          xgbTree = fit_xgbTree, parRF = fit_parRF, nnet = fit_nnet)
-fits <- list(kknn = fit_kknn, pda = fit_pda, multinom = fit_multinom, 
-             gbm = fit_gbm,
-          xgbTree = fit_xgbTree, parRF = fit_parRF, nnet = fit_nnet)
-
 
 fits <- list(fit_kknn, fit_pda, fit_multinom, 
              fit_gbm,
@@ -876,7 +870,7 @@ names(fits) <- models
 # plot kappa
 results_kappa <- data.frame(t(sapply(models, function(n){
   pos_max <- which.max(fits[[n]]$results$Kappa)
-  list(fits[[n]]$method, fits[[n]]$results$Kappa[pos_max], fits[[n]]$times$everything["elapsed"])
+  c(fits[[n]]$method, fits[[n]]$results$Kappa[pos_max], fits[[n]]$times$everything["elapsed"])
 })))
 
 colnames(results_kappa) <- c("Name", "Kappa", "Time")
@@ -956,13 +950,8 @@ lapply(models, function(model){
 # })
 # 
 stop("stop training VPE")
-xgbTreeGrid <-  expand.grid(nrounds = c(150, 200), 
-                        max_depth = 2, 
-                        eta = 0.3,
-                        gamma = 0,
-                        colsample_bytree = c(0.7, 0.8),
-                        min_child_weight = 1,
-                        subsample = c(0.4, 0.5, 0.6))
+modelLookup("multinom")
+multinomGrid <-  expand.grid(decay = seq(0.01, 1, 0.05))
 
 # xgbTreeGrid <-  expand.grid(nrounds = c(50, 100, 150, 200, 250), 
 #                             max_depth = c(1,2,3), 
@@ -973,11 +962,20 @@ xgbTreeGrid <-  expand.grid(nrounds = c(150, 200),
 #                             subsample = c(0.3, 0.4, 0.5, 0.6))
 
 time_start <- unclass(Sys.time())
-xgbFit <- train(Activity ~ ., data = df, method = "xgbTree", metric = metric, trControl = control, tuneGrid = xgbTreeGrid)
+#xgbFit <- train(Activity ~ ., data = df, method = "xgbTree", metric = metric, trControl = control, tuneGrid = xgbTreeGrid)
+fit_multinom_grid <- train(Activity ~ ., data = df_pca_or, method = "multinom", metric = metric,
+                           trControl = control, MaxNWts = 15000, tuneGrid = multinomGrid)
 time_end <- unclass(Sys.time())
 
-xgb_time <- time_end - time_start
+multinom_time_grid <- time_end - time_start
 
 
-plot_confusion(xgbFit$pred$obs, xgbFit$pred$pred, name = "xgbTree only train")
-plot_confusion(df_validation$Activity, predict(xgbFit, df_validation[1:561]), name = "xgbTree only val")
+plot_confusion(fit_multinom_grid$pred$obs, fit_multinom_grid$pred$pred, name = "Multinom train")
+
+# to print statistic
+# check with maxit = 1000
+# try with pca200 and with original
+# boot .642?
+
+# Final validation
+plot_confusion(df_validation$Activity, predict(fit_multinom_grid, predict(pca, newdata = df_validation[1:561]))[1:100], name = "Multinom validation")
