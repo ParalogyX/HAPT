@@ -824,6 +824,7 @@ metric <- "Mean_Balanced_Accuracy"
 # 
 # #df <- sample_n(df, 200)
 # #df$Activity <- droplevels(df$Activity)
+file_name <- "./models//all_pca_or.rds"
 
 if (RETRAIN) {
 
@@ -834,7 +835,8 @@ if (RETRAIN) {
     if (model %in% c("multinom", "nnet")) {
       train(Activity ~ ., data = df_pca_or, method = model, metric = metric, trControl = control, MaxNWts = 15000)
     } else if(model == "gbm") {
-      train(Activity ~ ., data = df_pca_or, method = model, metric = metric, trControl = control, train.fraction = 0.5)
+      train(Activity ~ ., data = df_pca_or, method = model, metric = metric, trControl = control, 
+            bag.fraction = 0.5, train.fraction = 0.5)
     }
     else {
       train(Activity ~ ., data = df_pca_or, method = model, metric = metric, trControl = control)
