@@ -83,7 +83,7 @@ conflict_prefer("select", "dplyr")
 conflict_prefer("filter", "dplyr")
 
 # Program controls
-RETRAIN <- T       # TRUE: models will be retrained; FALSE: trained models will be loaded from files
+RETRAIN <- F       # TRUE: models will be retrained; FALSE: trained models will be loaded from files
 PRINT_DEBUG <- T   # TRUE: debug information and training functions output will be printed out to the console; 
 #                    FALSE: no or only minimum of debug information will be printed out to the console
 
@@ -605,6 +605,9 @@ if(!require(mda)) install.packages("mda", dependencies = TRUE)
 if(!require(mboost)) install.packages("mboost", dependencies = TRUE)
 if(!require(nnet)) install.packages("nnet", dependencies = TRUE)
 if(!require(gbm)) install.packages("gbm", dependencies = TRUE)
+if(!require(plyr)) install.packages("plyr", dependencies = TRUE)
+conflict_prefer("mutate", "dplyr")
+conflict_prefer("arrange", "dplyr")
 if(!require(xgboost)) install.packages("xgboost", dependencies = TRUE)
 if(!require(randomForest)) install.packages("randomForest", dependencies = TRUE)
 if(!require(import)) install.packages("import", dependencies = TRUE)
@@ -618,6 +621,7 @@ library(mda)
 library(mboost)
 library(nnet)
 library(gbm)
+#library(plyr)
 library(xgboost)
 library(randomForest)
 #library(import)
@@ -632,7 +636,7 @@ models <- c("kknn", "pda", "multinom", "gbm", "xgbTree", "parRF", "nnet")
 print("bayesglm was excluded, as data not linear at all")
 print("gamboost only for binary")
 
-control <- trainControl(method="boot", classProbs= TRUE, summaryFunction = multiClassSummary, 
+control <- trainControl(method="cv", number = 5, classProbs= TRUE, summaryFunction = multiClassSummary, 
                         savePredictions = "final",
                         search="grid",
                         verbose = PRINT_DEBUG)
@@ -647,226 +651,232 @@ metric <- "Mean_Balanced_Accuracy"
 
 # http://chakkrit.com/assets/papers/tantithamthavorn2017optimization.pdf
 
-# train PDA
-# file_name <- "./models//pda.rds"
-# 
-# # nbGrid <-  expand.grid(usekernel = FALSE,
-# #                        fL = seq(0,2,0.5), # Laplace
-# #                        adjust = seq(0,2,0.5)) # Bandwidth
-# # pdaGrid <- expand.grid(lambda = seq(0.001, 0.1, 0.002))
-# 
-# if (RETRAIN) {
-#   time_start <- unclass(Sys.time())
-#   fit_pda <- train(Activity ~ ., data = df_pca_or, method = "pda", metric = metric,
-#                 trControl = control)
-#   time_end <- unclass(Sys.time())
-#   pda_time <- time_end - time_start
-#   # If "models" folder is not exist, create it
-#   if (!dir.exists("./models")) {dir.create("./models")}
-#   # save fits
-#   saveRDS(fit_pda, file_name)
-# } else {
-#   # if file is not found, stop and message.
-#   if (!file.exists(file_name)) {
-#     # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-#     #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-#     stop("File not found. Rerun code with RETRAIN = TRUE")
-#     }
-#   # read from file
-#   else {fit_pda <- readRDS(file_name)}
-# }
-# 
-# plot_confusion(fit_pda$pred$obs, fit_pda$pred$pred, name = "PDA only train")
-# 
-# x_valid <- as.data.frame(predict(pca, newdata = df_validation[1:561]))[1:100]
-# y_valid <- df_validation$Activity
-# plot_confusion(y_valid, predict(fit_pda, x_valid), name = "PDA only val")
-# 
-# # plot metrics vs lambda
-# fit_pda$results %>% ggplot(aes(x = lambda, y = Mean_Balanced_Accuracy)) +
-#   geom_line()
-# 
-# # 
-# # 
-# # 
-# # 
-# # Try multinom
-# file_name <- "./models//multinom.rds"
-# #multinomGrid <- expand.grid(decay = seq(0, 1, by = 0.1))
-# #multinomGrid <- expand.grid(decay = seq(1.4, 2.0, by = 0.15))
-# if (RETRAIN) {
-#   time_start <- unclass(Sys.time())
-#   #fit_nb <- train(Activity ~ ., data = df, method = "nb", metric = metric,
-#   # trControl = control, tuneGrid = nbGrid)
-#   fit_multinom <- train(Activity ~ ., data = df_pca_or, method = "multinom", metric = metric,
-#                    trControl = control, MaxNWts = 15000)
-#   time_end <- unclass(Sys.time())
-#   #nb_time <- time_end - time_start
-#   multinom_time <- time_end - time_start
-#   # If "models" folder is not exist, create it
-#   if (!dir.exists("./models")) {dir.create("./models")}
-#   # save fits
-#   saveRDS(fit_multinom, file_name)
-# } else {
-#   # if file is not found, stop and message.
-#   if (!file.exists(file_name)) {
-#     # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-#     #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-#     stop("File not found. Rerun code with RETRAIN = TRUE")
-#   }
-#   # read from file
-#   else {fit_multinom <- readRDS(file_name)}
-# }
-# 
-# plot_confusion(fit_multinom$pred$obs, fit_multinom$pred$pred, name = "Multinom only train")
-# 
-# x_valid <- as.data.frame(predict(pca, newdata = df_validation[1:561]))[1:100]
-# y_valid <- df_validation$Activity
-# plot_confusion(y_valid, predict(fit_multinom, x_valid), name = "Multinom only val")
-# 
-# # plot metrics vs decay
-# fit_multinom$results %>% ggplot(aes(x = decay, y = Mean_Balanced_Accuracy)) +
-#   geom_line()
-# 
-# 
-# # http://chakkrit.com/assets/papers/tantithamthavorn2017optimization.pdf
-# 
-# # Try knn
-# file_name <- "./models//knn.rds"
-# if (RETRAIN) {
-#   time_start <- unclass(Sys.time())
-#   fit_knn <- train(Activity ~ ., data = df_pca_or, method = "knn", metric = metric,
-#                         trControl = control)
-#   time_end <- unclass(Sys.time())
-#   #nb_time <- time_end - time_start
-#   knn_time <- time_end - time_start
-#   # If "models" folder is not exist, create it
-#   if (!dir.exists("./models")) {dir.create("./models")}
-#   # save fits
-#   saveRDS(fit_knn, file_name)
-# } else {
-#   # if file is not found, stop and message.
-#   if (!file.exists(file_name)) {
-#     # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-#     #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-#     stop("File not found. Rerun code with RETRAIN = TRUE")
-#   }
-#   # read from file
-#   else {fit_knn <- readRDS(file_name)}
-# }
-# 
-# plot_confusion(fit_knn$pred$obs, fit_knn$pred$pred, name = "Knn only train")
-# 
-# x_valid <- as.data.frame(predict(pca, newdata = df_validation[1:561]))[1:100]
-# y_valid <- df_validation$Activity
-# plot_confusion(y_valid, predict(fit_knn, x_valid), name = "Knn only val")
-# 
-# # plot metrics vs decay
-# fit_knn$results %>% ggplot(aes(x = k, y = Mean_Balanced_Accuracy)) +
-#   geom_line()
-# 
-# 
-# 
-# # Try xgbTree
-# file_name <- "./models//xgbTree.rds"
-# if (RETRAIN) {
-#   time_start <- unclass(Sys.time())
-#   fit_xgbTree <- train(Activity ~ ., data = df_pca_or, method = "xgbTree", metric = metric,
-#                    trControl = control)
-#   time_end <- unclass(Sys.time())
-#   #nb_time <- time_end - time_start
-#   xgbTree_time <- time_end - time_start
-#   # If "models" folder is not exist, create it
-#   if (!dir.exists("./models")) {dir.create("./models")}
-#   # save fits
-#   saveRDS(fit_xgbTree, file_name)
-# } else {
-#   # if file is not found, stop and message.
-#   if (!file.exists(file_name)) {
-#     # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-#     #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-#     stop("File not found. Rerun code with RETRAIN = TRUE")
-#   }
-#   # read from file
-#   else {fit_xgbTree <- readRDS(file_name)}
-# }
-# 
-# plot_confusion(fit_xgbTree$pred$obs, fit_xgbTree$pred$pred, name = "xgbTree only train")
-# 
-# x_valid <- as.data.frame(predict(pca, newdata = df_validation[1:561]))[1:100]
-# y_valid <- df_validation$Activity
-# plot_confusion(y_valid, predict(fit_xgbTree, x_valid), name = "xgbTree only val")
-# 
-# # plot metrics vs decay
-# fit_xgbTree$results %>% ggplot(aes(x = eta, y = Mean_Balanced_Accuracy)) +
-#   geom_line()
-# 
-# 
-# stop("stop training VPE")
-# # 
-# plot_confusion(fit_nb$pred$obs, fit_nb$pred$pred, name = "NB only train")
-# plot_confusion(df_validation$Activity, predict(fit_nb, df_validation[1:561]), name = "NB only val")
-# 
-# # df_smote <- UBL::SmoteClassif(Activity ~ ., dat = df)
-# # # plot outcomes distribution
-# # df_smote %>% group_by(Activity) %>% mutate(n = n()) %>%
-# #   ggplot(aes(reorder(Activity, -n))) +
-# #   geom_bar(col=rgb(0.1,0.4,0.5,0.7), fill=rgb(0.1,0.4,0.5,0.7)) + 
-# #   xlab("Activity") + ylab("Count") +
-# #   scale_y_continuous(breaks = seq(0,1500,100)) +
-# #   ggtitle("Distribution of activities after SMOTE is applied") +
-# #   theme_bw() +
-# #   theme(axis.text.x=element_text(angle = -60, hjust = 0))
-# # 
-# # # how many samples of each class in df
-# # sort(table(df_smote$Activity),decreasing=TRUE)
-# 
-# 
-# #df <- sample_n(df, 200)
-# #df$Activity <- droplevels(df$Activity)
-file_name <- "./models//all_pca_or.rds"
 
+
+
+
+
+
+
+
+############################
+# Train knn     ####
+###########################
+
+file_name <- "./models//kknn.rds"
 if (RETRAIN) {
-
   time_start <- unclass(Sys.time())
-
-  fits <- lapply(models, function(model){
-    print(model)
-    if (model %in% c("multinom", "nnet")) {
-      train(Activity ~ ., data = df_pca_or, method = model, metric = metric, trControl = control, MaxNWts = 15000)
-    } else if(model == "gbm") {
-      train(Activity ~ ., data = df_pca_or, method = model, metric = metric, trControl = control, 
-            bag.fraction = 0.5, train.fraction = 0.5)
-    }
-    else {
-      train(Activity ~ ., data = df_pca_or, method = model, metric = metric, trControl = control)
-    }
-  })
-
+  fit_kknn <- train(Activity ~ ., data = df_pca_or, method = "kknn", metric = metric,
+                   trControl = control)
   time_end <- unclass(Sys.time())
-
-  all_total_time <- time_end - time_start
-
-  names(fits) <- models
-
+  kknn_time <- time_end - time_start
   # If "models" folder is not exist, create it
   if (!dir.exists("./models")) {dir.create("./models")}
   # save fits
-  saveRDS(fits, file_name)
+  saveRDS(fit_kknn, file_name)
 } else {
-    # if file is not found, stop and message.
-    if (!file.exists(file_name)) {stop("File not found. Rerun code with RETRAIN = TRUE")}
-    # read from file
-    else {fits <- readRDS(file_name)}
+  # if file is not found, stop and message.
+  if (!file.exists(file_name)) {
+    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+    stop("File not found. Rerun code with RETRAIN = TRUE")
+  }
+  # read from file
+  else {fit_kknn <- readRDS(file_name)}
 }
-  
+
+
+
+
+############################
+# Train pda     ####
+###########################
+
+file_name <- "./models//pda.rds"
+if (RETRAIN) {
+  time_start <- unclass(Sys.time())
+  fit_pda <- train(Activity ~ ., data = df_pca_or, method = "pda", metric = metric,
+                   trControl = control)
+  time_end <- unclass(Sys.time())
+  pda_time <- time_end - time_start
+  # If "models" folder is not exist, create it
+  if (!dir.exists("./models")) {dir.create("./models")}
+  # save fits
+  saveRDS(fit_pda, file_name)
+} else {
+  # if file is not found, stop and message.
+  if (!file.exists(file_name)) {
+    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+    stop("File not found. Rerun code with RETRAIN = TRUE")
+  }
+  # read from file
+  else {fit_pda <- readRDS(file_name)}
+}
+
+############################
+# Train multinom     ####
+###########################
+
+file_name <- "./models//multinom.rds"
+if (RETRAIN) {
+  time_start <- unclass(Sys.time())
+  fit_multinom <- train(Activity ~ ., data = df_pca_or, method = "multinom", metric = metric,
+                   trControl = control, MaxNWts = 15000)
+  time_end <- unclass(Sys.time())
+  multinom_time <- time_end - time_start
+  # If "models" folder is not exist, create it
+  if (!dir.exists("./models")) {dir.create("./models")}
+  # save fits
+  saveRDS(fit_multinom, file_name)
+} else {
+  # if file is not found, stop and message.
+  if (!file.exists(file_name)) {
+    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+    stop("File not found. Rerun code with RETRAIN = TRUE")
+  }
+  # read from file
+  else {fit_multinom <- readRDS(file_name)}
+}
+
+
+
+############################
+# Train gbm     ####
+###########################
+# https://www.listendata.com/2015/07/gbm-boosted-models-tuning-parameters.html
+
+file_name <- "./models//gbm.rds"
+if (RETRAIN) {
+  time_start <- unclass(Sys.time())
+  fit_gbm <- train(Activity ~ ., data = df_pca_or, method = "gbm", metric = metric,
+                        trControl = control, 
+                        bag.fraction = 1, nTrain = 3000)
+  time_end <- unclass(Sys.time())
+  gbm_time <- time_end - time_start
+  # If "models" folder is not exist, create it
+  if (!dir.exists("./models")) {dir.create("./models")}
+  # save fits
+  saveRDS(fit_gbm, file_name)
+} else {
+  # if file is not found, stop and message.
+  if (!file.exists(file_name)) {
+    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+    stop("File not found. Rerun code with RETRAIN = TRUE")
+  }
+  # read from file
+  else {fit_gbm <- readRDS(file_name)}
+}
+
+
+
+
+
+
+
+############################
+# Train xgbTree     ####
+###########################
+
+file_name <- "./models//xgbTree.rds"
+if (RETRAIN) {
+  time_start <- unclass(Sys.time())
+  fit_xgbTree <- train(Activity ~ ., data = df_pca_or, method = "xgbTree", metric = metric,
+                   trControl = control)
+  time_end <- unclass(Sys.time())
+  xgbTree_time <- time_end - time_start
+  # If "models" folder is not exist, create it
+  if (!dir.exists("./models")) {dir.create("./models")}
+  # save fits
+  saveRDS(fit_xgbTree, file_name)
+} else {
+  # if file is not found, stop and message.
+  if (!file.exists(file_name)) {
+    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+    stop("File not found. Rerun code with RETRAIN = TRUE")
+  }
+  # read from file
+  else {fit_xgbTree <- readRDS(file_name)}
+}
+
+
+
+############################
+# Train parRF     ####
+###########################
+
+file_name <- "./models//parRF.rds"
+if (RETRAIN) {
+  time_start <- unclass(Sys.time())
+  fit_parRF <- train(Activity ~ ., data = df_pca_or, method = "parRF", metric = metric,
+                       trControl = control)
+  time_end <- unclass(Sys.time())
+  parRF_time <- time_end - time_start
+  # If "models" folder is not exist, create it
+  if (!dir.exists("./models")) {dir.create("./models")}
+  # save fits
+  saveRDS(fit_parRF, file_name)
+} else {
+  # if file is not found, stop and message.
+  if (!file.exists(file_name)) {
+    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+    stop("File not found. Rerun code with RETRAIN = TRUE")
+  }
+  # read from file
+  else {fit_parRF <- readRDS(file_name)}
+}
+
+
+############################
+# Train nnet     ####
+###########################
+
+file_name <- "./models//nnet.rds"
+if (RETRAIN) {
+  time_start <- unclass(Sys.time())
+  fit_nnet <- train(Activity ~ ., data = df_pca_or, method = "nnet", metric = metric,
+                     trControl = control, MaxNWts = 15000)
+  time_end <- unclass(Sys.time())
+  nnet_time <- time_end - time_start
+  # If "models" folder is not exist, create it
+  if (!dir.exists("./models")) {dir.create("./models")}
+  # save fits
+  saveRDS(fit_nnet, file_name)
+} else {
+  # if file is not found, stop and message.
+  if (!file.exists(file_name)) {
+    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+    stop("File not found. Rerun code with RETRAIN = TRUE")
+  }
+  # read from file
+  else {fit_nnet <- readRDS(file_name)}
+}
+
+models <- c("kknn", "pda", "multinom", "gbm", "xgbTree", "parRF", "nnet")
+fits <- c(kknn = fit_kknn, pda = fit_pda, multinom = fit_multinom, 
+          xgbTree = fit_xgbTree, parRF = fit_parRF, nnet = fit_nnet)
+fits <- list(kknn = fit_kknn, pda = fit_pda, multinom = fit_multinom, 
+             gbm = fit_gbm,
+          xgbTree = fit_xgbTree, parRF = fit_parRF, nnet = fit_nnet)
+
+
+fits <- list(fit_kknn, fit_pda, fit_multinom, 
+             fit_gbm,
+             fit_xgbTree, fit_parRF, fit_nnet)
+
+names(fits) <- models
 
 # results
 
 # plot kappa
 results_kappa <- data.frame(t(sapply(models, function(n){
   pos_max <- which.max(fits[[n]]$results$Kappa)
-  c(fits[[n]]$method, fits[[n]]$results$Kappa[pos_max], fits[[n]]$times$everything["elapsed"])
+  list(fits[[n]]$method, fits[[n]]$results$Kappa[pos_max], fits[[n]]$times$everything["elapsed"])
 })))
 
 colnames(results_kappa) <- c("Name", "Kappa", "Time")
