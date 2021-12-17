@@ -23,6 +23,8 @@
 # clear console output
 cat("\014")
 
+total_time_start <- unclass(Sys.time())
+
 ###########################################################
 #                      LIBRARIES                          #
 ###########################################################
@@ -581,7 +583,7 @@ rm(p1, p2, p3, p4, dummy_plot, legend)
 
 
 # apply the same pca to non SMOTE df
-# keep 200 features from df_pca
+# keep 100 features from df_pca
 df_pca_or <- as.data.frame(predict(pca, newdata = df[1:561]))
 df_pca_or <- df_pca_or[1:100] %>% cbind(df[562])
 
@@ -591,6 +593,11 @@ df_pca_or <- df_pca_or[1:100] %>% cbind(df[562])
 #                      Model building                     #
 ###########################################################
 
+
+# If "Data" folder is not exist, create it
+if (!dir.exists("./models")) {
+  dir.create("./models")
+}
 
 # Metric will be average F1-score for multiclass classification
 # It is a good single value metric for unbalanced multiclass problems.
@@ -949,9 +956,18 @@ lapply(models, function(model){
 #   plot_confusion(df_validation$Activity, predict(fits[[model]], df_validation[1:561]), name = paste(model, "validation"))
 # })
 # 
-stop("stop training VPE")
+
+
+
+control <- trainControl(method="boot", classProbs= TRUE, summaryFunction = multiClassSummary, 
+                        savePredictions = "final",
+                        search="grid",
+                        verbose = PRINT_DEBUG)
+
+file_name <- "./models//multinom_expand_grid.rds"
+
 modelLookup("multinom")
-multinomGrid <-  expand.grid(decay = seq(0.01, 1, 0.05))
+multinomGrid <-  expand.grid(decay = seq(0, 0.2, 0.005))
 
 # xgbTreeGrid <-  expand.grid(nrounds = c(50, 100, 150, 200, 250), 
 #                             max_depth = c(1,2,3), 
@@ -960,17 +976,132 @@ multinomGrid <-  expand.grid(decay = seq(0.01, 1, 0.05))
 #                             colsample_bytree = c(0.7, 0.8, 0.9),
 #                             min_child_weight = c(0.8, 0.9, 1),
 #                             subsample = c(0.3, 0.4, 0.5, 0.6))
+if (RETRAIN) {
+  time_start <- unclass(Sys.time())
+  #xgbFit <- train(Activity ~ ., data = df, method = "xgbTree", metric = metric, trControl = control, tuneGrid = xgbTreeGrid)
+  fit_multinom_grid <- train(Activity ~ ., data = df_pca_or, method = "multinom", metric = metric,
+                             trControl = control, MaxNWts = 15000, tuneGrid = multinomGrid)
+  time_end <- unclass(Sys.time())
+  
+  multinom_time_grid <- time_end - time_start
+  saveRDS(fit_multinom_grid, file_name)
+} else {
+  # if file is not found, stop and message.
+  if (!file.exists(file_name)) {
+    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+    stop("File not found. Rerun code with RETRAIN = TRUE")
+  }
+  # read from file
+  else {fit_multinom_grid <- readRDS(file_name)}
+}
 
-time_start <- unclass(Sys.time())
-#xgbFit <- train(Activity ~ ., data = df, method = "xgbTree", metric = metric, trControl = control, tuneGrid = xgbTreeGrid)
-fit_multinom_grid <- train(Activity ~ ., data = df_pca_or, method = "multinom", metric = metric,
-                           trControl = control, MaxNWts = 15000, tuneGrid = multinomGrid)
-time_end <- unclass(Sys.time())
-
-multinom_time_grid <- time_end - time_start
-
+# plot decay vs metrics
+fit_multinom_grid$results %>% ggplot(aes(x = decay)) +
+  geom_line(aes(y = Kappa), color = "red") + 
+  geom_line(aes(y = Mean_Balanced_Accuracy), color = "green")
 
 plot_confusion(fit_multinom_grid$pred$obs, fit_multinom_grid$pred$pred, name = "Multinom train")
+# build final model
+
+
+multinomGrid_fin <-  expand.grid(decay = 0.06)
+control <- trainControl(method="boot", classProbs= TRUE, summaryFunction = multiClassSummary, 
+                        savePredictions = "final",
+                        search="grid",
+                        verbose = PRINT_DEBUG)
+
+file_name <- "./models//multinom_final_pca_100.rds"
+
+if (RETRAIN) {
+  time_start <- unclass(Sys.time())
+  #xgbFit <- train(Activity ~ ., data = df, method = "xgbTree", metric = metric, trControl = control, tuneGrid = xgbTreeGrid)
+  fit_multinom_fin_100 <- train(Activity ~ ., data = df_pca_or, method = "multinom", metric = metric,
+                             trControl = control, MaxNWts = 15000, maxit = 500, tuneGrid = multinomGrid_fin)
+  time_end <- unclass(Sys.time())
+  
+  multinom_time_fin_100 <- time_end - time_start
+  saveRDS(fit_multinom_fin_100, file_name)
+} else {
+  # if file is not found, stop and message.
+  if (!file.exists(file_name)) {
+    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+    stop("File not found. Rerun code with RETRAIN = TRUE")
+  }
+  # read from file
+  else {fit_multinom_fin_100 <- readRDS(file_name)}
+}
+
+
+# fit_multinom$results %>% ggplot(aes(x = decay)) +
+#   geom_line(aes(y = Kappa), color = "red") + 
+#   geom_line(aes(y = Mean_Balanced_Accuracy), color = "green")
+
+print(fit_multinom_fin_100$results$Mean_Balanced_Accuracy)
+plot_confusion(fit_multinom_fin_100$pred$obs, fit_multinom_fin_100$pred$pred, name = "Multinom (100 PC) 500 iter train")
+
+
+# try with extended pca (200 PC's)
+# keep 200 features from df_pca
+df_pca_or <- as.data.frame(predict(pca, newdata = df[1:561]))
+df_pca_or <- df_pca_or[1:200] %>% cbind(df[562])
+
+file_name <- "./models//multinom_final_pca_200.rds"
+
+if (RETRAIN) {
+  time_start <- unclass(Sys.time())
+  #xgbFit <- train(Activity ~ ., data = df, method = "xgbTree", metric = metric, trControl = control, tuneGrid = xgbTreeGrid)
+  fit_multinom_fin_200 <- train(Activity ~ ., data = df_pca_or, method = "multinom", metric = metric,
+                            trControl = control, MaxNWts = 15000, maxit = 500, tuneGrid = multinomGrid_fin)
+  time_end <- unclass(Sys.time())
+  
+  multinom_time_fin_200 <- time_end - time_start
+  saveRDS(fit_multinom_fin_200, file_name)
+} else {
+  # if file is not found, stop and message.
+  if (!file.exists(file_name)) {
+    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+    stop("File not found. Rerun code with RETRAIN = TRUE")
+  }
+  # read from file
+  else {fit_multinom_fin_200 <- readRDS(file_name)}
+}
+
+print(fit_multinom_fin_200$results$Mean_Balanced_Accuracy)
+plot_confusion(fit_multinom_fin_200$pred$obs, fit_multinom_fin_200$pred$pred, name = "Multinom (200 PC) 500 iter train")
+
+# try with original dataset
+
+
+file_name <- "./models//multinom_final_orig.rds"
+
+if (RETRAIN) {
+  time_start <- unclass(Sys.time())
+  #xgbFit <- train(Activity ~ ., data = df, method = "xgbTree", metric = metric, trControl = control, tuneGrid = xgbTreeGrid)
+  fit_multinom_orig <- train(Activity ~ ., data = df, method = "multinom", metric = metric,
+                                trControl = control, MaxNWts = 15000, maxit = 500, tuneGrid = multinomGrid_fin)
+  time_end <- unclass(Sys.time())
+  
+  multinom_time_orig <- time_end - time_start
+  saveRDS(fit_multinom_orig, file_name)
+} else {
+  # if file is not found, stop and message.
+  if (!file.exists(file_name)) {
+    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
+    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
+    stop("File not found. Rerun code with RETRAIN = TRUE")
+  }
+  # read from file
+  else {fit_multinom_orig <- readRDS(file_name)}
+}
+
+print(fit_multinom_orig$results$Mean_Balanced_Accuracy)
+plot_confusion(fit_multinom_orig$pred$obs, fit_multinom_orig$pred$pred, name = "Multinom (orig dataset) 500 iter train")
+
+
+
 
 # to print statistic
 # check with maxit = 1000
@@ -978,4 +1109,11 @@ plot_confusion(fit_multinom_grid$pred$obs, fit_multinom_grid$pred$pred, name = "
 # boot .642?
 
 # Final validation
-plot_confusion(df_validation$Activity, predict(fit_multinom_grid, predict(pca, newdata = df_validation[1:561]))[1:100], name = "Multinom validation")
+
+# transofrm validation
+val_pca <- predict(pca, newdata = df_validation[1:561])
+plot_confusion(df_validation$Activity, predict(fit_multinom_grid, val_pca[,1:100]), name = "Multinom validation")
+
+
+total_time_end <- unclass(Sys.time())
+total_time <- total_time_end - total_time_start
