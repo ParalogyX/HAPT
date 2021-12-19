@@ -619,6 +619,7 @@ if(!require(xgboost)) install.packages("xgboost", dependencies = TRUE)
 if(!require(randomForest)) install.packages("randomForest", dependencies = TRUE)
 if(!require(import)) install.packages("import", dependencies = TRUE)
 
+if(!require(googledrive)) install.packages("googledrive")
 
 library(caret)
 library(klaR)
@@ -633,7 +634,7 @@ library(xgboost)
 library(randomForest)
 #library(import)
 
-
+library(googledrive)
 
 models <- c("kknn", "pda", "multinom", "gbm", "xgbTree", "parRF", "nnet")
 
@@ -679,7 +680,7 @@ if (RETRAIN) {
 } else {
   # if file is not found, download it.
   if (!file.exists(file_name)) {
-    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/kknn.rds", file_name)
+    download.file("https://github.com/ParalogyX/HAPT/releases/download/trained/kknn.rds", file_name)
   }
   # read from file
   fit_kknn <- readRDS(file_name)
@@ -706,7 +707,7 @@ if (RETRAIN) {
 } else {
   # if file is not found, download it.
   if (!file.exists(file_name)) {
-    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/pda.rds", file_name)
+    download.file("https://github.com/ParalogyX/HAPT/releases/download/trained/pda.rds", file_name)
   }
   # read from file
   fit_pda <- readRDS(file_name)
@@ -730,7 +731,7 @@ if (RETRAIN) {
 } else {
   # if file is not found, download it.
   if (!file.exists(file_name)) {
-    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/multinom.rds", file_name)
+    download.file("https://github.com/ParalogyX/HAPT/releases/download/trained/multinom.rds", file_name)
   }
   # read from file
   fit_multinom <- readRDS(file_name)
@@ -758,7 +759,7 @@ if (RETRAIN) {
 } else {
   # if file is not found, download it.
   if (!file.exists(file_name)) {
-    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/gbm.rds", file_name)
+    download.file("https://github.com/ParalogyX/HAPT/releases/download/trained/gbm.rds", file_name)
   }
   # read from file
   fit_gbm <- readRDS(file_name)
@@ -788,7 +789,7 @@ if (RETRAIN) {
 } else {
   # if file is not found, download it.
   if (!file.exists(file_name)) {
-    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/xgbTree.rds", file_name)
+    download.file("https://github.com/ParalogyX/HAPT/releases/download/trained/xgbTree.rds", file_name)
   }
   # read from file
   fit_xgbTree <- readRDS(file_name)
@@ -814,7 +815,7 @@ if (RETRAIN) {
 } else {
   # if file is not found, download it.
   if (!file.exists(file_name)) {
-    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/parRF.rds", file_name)
+    download.file("https://github.com/ParalogyX/HAPT/releases/download/trained/parRF.rds", file_name)
   }
   # read from file
   fit_parRF <- readRDS(file_name)
@@ -839,7 +840,7 @@ if (RETRAIN) {
 } else {
   # if file is not found, download it.
   if (!file.exists(file_name)) {
-    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/nnet.rds", file_name)
+    download.file("https://github.com/ParalogyX/HAPT/releases/download/trained/nnet.rds", file_name)
   }
   # read from file
   fit_nnet <- readRDS(file_name)
@@ -967,7 +968,7 @@ if (RETRAIN) {
 } else {
   # if file is not found, download it.
   if (!file.exists(file_name)) {
-    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/multinom_expand_grid.rds", file_name)
+    download.file("https://github.com/ParalogyX/HAPT/releases/download/trained/multinom_expand_grid.rds", file_name)
   }
   # read from file
   fit_multinom_grid <- readRDS(file_name)
@@ -1010,7 +1011,7 @@ if (RETRAIN) {
 } else {
   # if file is not found, download it.
   if (!file.exists(file_name)) {
-    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/multinom_final_pca_100.rds", file_name)
+    download.file("https://github.com/ParalogyX/HAPT/releases/download/trained/multinom_final_pca_100.rds", file_name)
   }
   # read from file
   fit_multinom_fin_100 <- readRDS(file_name)
@@ -1043,7 +1044,7 @@ if (RETRAIN) {
 } else {
   # if file is not found, download it.
   if (!file.exists(file_name)) {
-    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/multinom_final_pca_200.rds", file_name)
+    download.file("https://github.com/ParalogyX/HAPT/releases/download/trained/multinom_final_pca_200.rds", file_name)
   }
   # read from file
   fit_multinom_fin_200 <- readRDS(file_name)
@@ -1069,7 +1070,7 @@ if (RETRAIN) {
 } else {
   # if file is not found, download it.
   if (!file.exists(file_name)) {
-    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/multinom_final_orig.rds", file_name)
+    download.file("https://github.com/ParalogyX/HAPT/releases/download/trained/multinom_final_orig.rds", file_name)
   }
   # read from file
   fit_multinom_orig <- readRDS(file_name)
