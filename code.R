@@ -634,14 +634,9 @@ library(randomForest)
 #library(import)
 
 
-#models <- c("kknn", "pda", "slda", "hdrda", "pam", "multinom", "C5.0Tree", "CSimca", "rf", "pls", "earth", "xgbTree")
-#models <- c("pcaNNet", "kknn", "pda", "multinom", "xgbTree", "C5.0Tree")
-#models <- c("kknn", "pda")
+
 models <- c("kknn", "pda", "multinom", "gbm", "xgbTree", "parRF", "nnet")
 
-
-print("bayesglm was excluded, as data not linear at all")
-print("gamboost only for binary")
 
 control <- trainControl(method="cv", number = 5, classProbs= TRUE, summaryFunction = multiClassSummary, 
                         savePredictions = "final",
@@ -682,14 +677,12 @@ if (RETRAIN) {
   # save fits
   saveRDS(fit_kknn, file_name)
 } else {
-  # if file is not found, stop and message.
+  # if file is not found, download it.
   if (!file.exists(file_name)) {
-    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-    stop("File not found. Rerun code with RETRAIN = TRUE")
+    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/kknn.rds", file_name)
   }
   # read from file
-  else {fit_kknn <- readRDS(file_name)}
+  fit_kknn <- readRDS(file_name)
 }
 
 
@@ -711,14 +704,12 @@ if (RETRAIN) {
   # save fits
   saveRDS(fit_pda, file_name)
 } else {
-  # if file is not found, stop and message.
+  # if file is not found, download it.
   if (!file.exists(file_name)) {
-    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-    stop("File not found. Rerun code with RETRAIN = TRUE")
+    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/pda.rds", file_name)
   }
   # read from file
-  else {fit_pda <- readRDS(file_name)}
+  fit_pda <- readRDS(file_name)
 }
 
 ############################
@@ -737,14 +728,12 @@ if (RETRAIN) {
   # save fits
   saveRDS(fit_multinom, file_name)
 } else {
-  # if file is not found, stop and message.
+  # if file is not found, download it.
   if (!file.exists(file_name)) {
-    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-    stop("File not found. Rerun code with RETRAIN = TRUE")
+    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/multinom.rds", file_name)
   }
   # read from file
-  else {fit_multinom <- readRDS(file_name)}
+  fit_multinom <- readRDS(file_name)
 }
 
 
@@ -767,14 +756,12 @@ if (RETRAIN) {
   # save fits
   saveRDS(fit_gbm, file_name)
 } else {
-  # if file is not found, stop and message.
+  # if file is not found, download it.
   if (!file.exists(file_name)) {
-    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-    stop("File not found. Rerun code with RETRAIN = TRUE")
+    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/gbm.rds", file_name)
   }
   # read from file
-  else {fit_gbm <- readRDS(file_name)}
+  fit_gbm <- readRDS(file_name)
 }
 
 
@@ -799,14 +786,12 @@ if (RETRAIN) {
   # save fits
   saveRDS(fit_xgbTree, file_name)
 } else {
-  # if file is not found, stop and message.
+  # if file is not found, download it.
   if (!file.exists(file_name)) {
-    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-    stop("File not found. Rerun code with RETRAIN = TRUE")
+    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/xgbTree.rds", file_name)
   }
   # read from file
-  else {fit_xgbTree <- readRDS(file_name)}
+  fit_xgbTree <- readRDS(file_name)
 }
 
 
@@ -827,14 +812,12 @@ if (RETRAIN) {
   # save fits
   saveRDS(fit_parRF, file_name)
 } else {
-  # if file is not found, stop and message.
+  # if file is not found, download it.
   if (!file.exists(file_name)) {
-    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-    stop("File not found. Rerun code with RETRAIN = TRUE")
+    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/parRF.rds", file_name)
   }
   # read from file
-  else {fit_parRF <- readRDS(file_name)}
+  fit_parRF <- readRDS(file_name)
 }
 
 
@@ -854,14 +837,12 @@ if (RETRAIN) {
   # save fits
   saveRDS(fit_nnet, file_name)
 } else {
-  # if file is not found, stop and message.
+  # if file is not found, download it.
   if (!file.exists(file_name)) {
-    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-    stop("File not found. Rerun code with RETRAIN = TRUE")
+    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/nnet.rds", file_name)
   }
   # read from file
-  else {fit_nnet <- readRDS(file_name)}
+  fit_nnet <- readRDS(file_name)
 }
 
 models <- c("kknn", "pda", "multinom", "gbm", "xgbTree", "parRF", "nnet")
@@ -984,14 +965,12 @@ if (RETRAIN) {
   multinom_time_grid <- time_end - time_start
   saveRDS(fit_multinom_grid, file_name)
 } else {
-  # if file is not found, stop and message.
+  # if file is not found, download it.
   if (!file.exists(file_name)) {
-    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-    stop("File not found. Rerun code with RETRAIN = TRUE")
+    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/multinom_expand_grid.rds", file_name)
   }
   # read from file
-  else {fit_multinom_grid <- readRDS(file_name)}
+  fit_multinom_grid <- readRDS(file_name)
 }
 print(fit_multinom$results$Mean_Balanced_Accuracy)
 print(fit_multinom_grid$results$Mean_Balanced_Accuracy)
@@ -1029,14 +1008,12 @@ if (RETRAIN) {
   multinom_time_fin_100 <- time_end - time_start
   saveRDS(fit_multinom_fin_100, file_name)
 } else {
-  # if file is not found, stop and message.
+  # if file is not found, download it.
   if (!file.exists(file_name)) {
-    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-    stop("File not found. Rerun code with RETRAIN = TRUE")
+    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/multinom_final_pca_100.rds", file_name)
   }
   # read from file
-  else {fit_multinom_fin_100 <- readRDS(file_name)}
+  fit_multinom_fin_100 <- readRDS(file_name)
 }
 
 
@@ -1057,7 +1034,6 @@ file_name <- "./models//multinom_final_pca_200.rds"
 
 if (RETRAIN) {
   time_start <- unclass(Sys.time())
-  #xgbFit <- train(Activity ~ ., data = df, method = "xgbTree", metric = metric, trControl = control, tuneGrid = xgbTreeGrid)
   fit_multinom_fin_200 <- train(Activity ~ ., data = df_pca_or, method = "multinom", metric = metric,
                             trControl = control, MaxNWts = 15000, maxit = 500, tuneGrid = multinomGrid_fin)
   time_end <- unclass(Sys.time())
@@ -1065,14 +1041,12 @@ if (RETRAIN) {
   multinom_time_fin_200 <- time_end - time_start
   saveRDS(fit_multinom_fin_200, file_name)
 } else {
-  # if file is not found, stop and message.
+  # if file is not found, download it.
   if (!file.exists(file_name)) {
-    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-    stop("File not found. Rerun code with RETRAIN = TRUE")
+    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/multinom_final_pca_200.rds", file_name)
   }
   # read from file
-  else {fit_multinom_fin_200 <- readRDS(file_name)}
+  fit_multinom_fin_200 <- readRDS(file_name)
 }
 
 print(fit_multinom_fin_200$results$Mean_Balanced_Accuracy)
@@ -1093,14 +1067,12 @@ if (RETRAIN) {
   multinom_time_orig <- time_end - time_start
   saveRDS(fit_multinom_orig, file_name)
 } else {
-  # if file is not found, stop and message.
+  # if file is not found, download it.
   if (!file.exists(file_name)) {
-    # https://drive.google.com/file/d/1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq/view?usp=sharing
-    #download.file("https://drive.google.com/u/0/uc?export=download&confirm=kooB&id=1h7PW-lNk5SVADjY_8bd5K33rdv1obEhq", file_name)
-    stop("File not found. Rerun code with RETRAIN = TRUE")
+    download.file("https://github.com/ParalogyX/HAPT/raw/master/models/multinom_final_orig.rds", file_name)
   }
   # read from file
-  else {fit_multinom_orig <- readRDS(file_name)}
+  fit_multinom_orig <- readRDS(file_name)
 }
 
 print(fit_multinom_orig$results$Mean_Balanced_Accuracy)
@@ -1118,8 +1090,20 @@ plot_confusion(fit_multinom_orig$pred$obs, fit_multinom_orig$pred$pred, name = "
 
 # transofrm validation
 val_pca <- predict(pca, newdata = df_validation[1:561])
-plot_confusion(df_validation$Activity, predict(fit_multinom_grid, val_pca[,1:100]), name = "Multinom validation")
 
+plot_confusion(df_validation$Activity, predict(fit_multinom_grid, val_pca[,1:100]), name = "Multinom PCA100 (100 epoch) validation")
+
+plot_confusion(df_validation$Activity, predict(fit_multinom_fin_100, val_pca[,1:100]), name = "Multinom PCA100 validation")
+
+plot_confusion(df_validation$Activity, predict(fit_multinom_fin_200, val_pca[,1:200]), name = "Multinom PCA200 validation")
+
+plot_confusion(df_validation$Activity, predict(fit_multinom_orig, df_validation[1:561]), name = "Multinom full validation")
+
+
+print(fit_multinom_grid$results$Mean_Balanced_Accuracy)
+print(fit_multinom_fin_100$results$Mean_Balanced_Accuracy)
+print(fit_multinom_fin_200$results$Mean_Balanced_Accuracy)
+print(fit_multinom_orig$results$Mean_Balanced_Accuracy)
 
 total_time_end <- unclass(Sys.time())
 total_time <- total_time_end - total_time_start
