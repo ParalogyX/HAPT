@@ -5,7 +5,7 @@ author: "Vladimir Pedchenko"
 date: "11/24/2021"
 header-includes:
 - \usepackage{titling}
-- \pretitle{\begin{center}\LARGE\includegraphics[width=6cm]{./report_files//HarvardX.jpg}\LARGE\includegraphics[width=3cm]{./report_files//edx.png}\\[\bigskipamount]\vspace{5cm}}
+- \pretitle{\begin{center}\LARGE\includegraphics[width=6cm]{./report//HarvardX.jpg}\LARGE\includegraphics[width=3cm]{./report//edx.png}\\[\bigskipamount]\vspace{5cm}}
 - \posttitle{\end{center}}
 include-before:
 - '`\newpage{}`{=latex}'
@@ -16,7 +16,7 @@ output:
     toc: yes
     fig_height: 3
     includes:
-      in_header: ./report_files//preamble.tex
+      in_header: ./report//preamble.tex
     latex_engine: xelatex
 urlcolor: blue
 ---
@@ -50,19 +50,19 @@ knitr::opts_chunk$set(echo = TRUE, tidy.opts=list(width.cutoff=80), tidy=TRUE)
 
 ```{r program-control, message=FALSE, warning=FALSE, include=FALSE}
 # download pictures and preamble for pdf generation
-if (!dir.exists("./report_files")) {
-  dir.create("./report_files")
+if (!dir.exists("./report")) {
+  dir.create("./report")
 }
 
 # Download pictures and preamble if they are not downloaded yet
-if (!file.exists("./report_files//HarvardX.jpg")) {
-  download.file("https://raw.githubusercontent.com/ParalogyX/HAPT/master/report_files/HarvardX.jpg", "./report_files//HarvardX.jpg", mode = "wb")
+if (!file.exists("./report//HarvardX.jpg")) {
+  download.file("https://raw.githubusercontent.com/ParalogyX/HAPT/master/report/HarvardX.jpg", "./report//HarvardX.jpg", mode = "wb")
 }
-if (!file.exists("./report_files//edx.png")) {
-  download.file("https://raw.githubusercontent.com/ParalogyX/HAPT/master/report_files/edx.png", "./report_files//edx.png", mode = "wb")
+if (!file.exists("./report//edx.png")) {
+  download.file("https://raw.githubusercontent.com/ParalogyX/HAPT/master/report/edx.png", "./report//edx.png", mode = "wb")
 }
-if (!file.exists("./report_files//preamble.tex")) {
-  download.file("https://raw.githubusercontent.com/ParalogyX/HAPT/master/report_files/preamble.tex", "./report_files//preamble.tex")
+if (!file.exists("./report//preamble.tex")) {
+  download.file("https://raw.githubusercontent.com/ParalogyX/HAPT/master/report/preamble.tex", "./report//preamble.tex")
 }
 
 # functions select and filter are masked in other package, but we need only this one
