@@ -51,13 +51,13 @@ if (!dir.exists("./report_files")) {
 
 # Download pictures and preamble if they are not downloaded yet
 if (!file.exists("./report_files//HarvardX.jpg")) {
-  download.file("http://archive.ics.uci.edu/ml/machine-learning-databases/00341/HAPT%20Data%20Set.zip", "./report_files//HarvardX.jpg")
+  download.file("https://raw.githubusercontent.com/ParalogyX/HAPT/master/report_files/HarvardX.jpg", "./report_files//HarvardX.jpg")
 }
 if (!file.exists("./report_files//edx.png")) {
-  download.file("http://archive.ics.uci.edu/ml/machine-learning-databases/00341/HAPT%20Data%20Set.zip", "./report_files//edx.png")
+  download.file("https://raw.githubusercontent.com/ParalogyX/HAPT/master/report_files/edx.png", "./report_files//edx.png")
 }
 if (!file.exists("./report_files//preamble.tex")) {
-  download.file("http://archive.ics.uci.edu/ml/machine-learning-databases/00341/HAPT%20Data%20Set.zip", "./report_files//preamble.tex")
+  download.file("https://raw.githubusercontent.com/ParalogyX/HAPT/master/report_files/preamble.tex", "./report_files//preamble.tex")
 }
 
 # functions select and filter are masked in other package, but we need only this one
