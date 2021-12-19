@@ -85,7 +85,7 @@ conflict_prefer("select", "dplyr")
 conflict_prefer("filter", "dplyr")
 
 # Program controls
-RETRAIN <- T       # TRUE: models will be retrained; FALSE: trained models will be loaded from files
+RETRAIN <- F       # TRUE: models will be retrained; FALSE: trained models will be loaded from files
 PRINT_DEBUG <- T   # TRUE: debug information and training functions output will be printed out to the console; 
 #                    FALSE: no or only minimum of debug information will be printed out to the console
 
@@ -958,6 +958,10 @@ lapply(models, function(model){
 # 
 
 
+# plot decay vs metrics
+fit_multinom$results %>% ggplot(aes(x = decay)) +
+  geom_line(aes(y = Kappa), color = "red") + 
+  geom_line(aes(y = Mean_Balanced_Accuracy), color = "green")
 
 control <- trainControl(method="boot", classProbs= TRUE, summaryFunction = multiClassSummary, 
                         savePredictions = "final",
@@ -967,20 +971,14 @@ control <- trainControl(method="boot", classProbs= TRUE, summaryFunction = multi
 file_name <- "./models//multinom_expand_grid.rds"
 
 modelLookup("multinom")
-multinomGrid <-  expand.grid(decay = seq(0, 0.2, 0.005))
 
-# xgbTreeGrid <-  expand.grid(nrounds = c(50, 100, 150, 200, 250), 
-#                             max_depth = c(1,2,3), 
-#                             eta = c(0.2, 0.3, 0.4),
-#                             gamma = c(0, 0.3, 0.5),
-#                             colsample_bytree = c(0.7, 0.8, 0.9),
-#                             min_child_weight = c(0.8, 0.9, 1),
-#                             subsample = c(0.3, 0.4, 0.5, 0.6))
+multinom_grid <- expand.grid(decay = c(0.1, 0.5, 1, 3, 5, 8, 10, 13, 15))
+
 if (RETRAIN) {
   time_start <- unclass(Sys.time())
   #xgbFit <- train(Activity ~ ., data = df, method = "xgbTree", metric = metric, trControl = control, tuneGrid = xgbTreeGrid)
   fit_multinom_grid <- train(Activity ~ ., data = df_pca_or, method = "multinom", metric = metric,
-                             trControl = control, MaxNWts = 15000, tuneGrid = multinomGrid)
+                             trControl = control, MaxNWts = 15000, tuneGrid = multinom_grid)
   time_end <- unclass(Sys.time())
   
   multinom_time_grid <- time_end - time_start
@@ -995,17 +993,26 @@ if (RETRAIN) {
   # read from file
   else {fit_multinom_grid <- readRDS(file_name)}
 }
-
+print(fit_multinom$results$Mean_Balanced_Accuracy)
+print(fit_multinom_grid$results$Mean_Balanced_Accuracy)
 # plot decay vs metrics
 fit_multinom_grid$results %>% ggplot(aes(x = decay)) +
   geom_line(aes(y = Kappa), color = "red") + 
   geom_line(aes(y = Mean_Balanced_Accuracy), color = "green")
 
+
+plot(fit_multinom_grid)
+
 plot_confusion(fit_multinom_grid$pred$obs, fit_multinom_grid$pred$pred, name = "Multinom train")
 # build final model
 
 
-multinomGrid_fin <-  expand.grid(decay = 0.06)
+
+decay = fit_multinom_grid$bestTune$decay
+
+
+
+multinomGrid_fin <-  expand.grid(decay = decay)
 control <- trainControl(method="boot", classProbs= TRUE, summaryFunction = multiClassSummary, 
                         savePredictions = "final",
                         search="grid",
@@ -1015,7 +1022,6 @@ file_name <- "./models//multinom_final_pca_100.rds"
 
 if (RETRAIN) {
   time_start <- unclass(Sys.time())
-  #xgbFit <- train(Activity ~ ., data = df, method = "xgbTree", metric = metric, trControl = control, tuneGrid = xgbTreeGrid)
   fit_multinom_fin_100 <- train(Activity ~ ., data = df_pca_or, method = "multinom", metric = metric,
                              trControl = control, MaxNWts = 15000, maxit = 500, tuneGrid = multinomGrid_fin)
   time_end <- unclass(Sys.time())
