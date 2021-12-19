@@ -4,4 +4,5 @@
 .Ruserdata
 *.txt
 data
+models
 .RDataTmp
