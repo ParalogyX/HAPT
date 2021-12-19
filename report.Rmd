@@ -5,7 +5,7 @@ author: "Vladimir Pedchenko"
 date: "11/24/2021"
 header-includes:
 - \usepackage{titling}
-- \pretitle{\begin{center}\LARGE\includegraphics[width=6cm]{HarvardX.jpg}\LARGE\includegraphics[width=3cm]{edx.png}\\[\bigskipamount]\vspace{5cm}}
+- \pretitle{\begin{center}\LARGE\includegraphics[width=6cm]{./report_files//HarvardX.jpg}\LARGE\includegraphics[width=3cm]{./report_files//edx.png}\\[\bigskipamount]\vspace{5cm}}
 - \posttitle{\end{center}}
 include-before:
 - '`\newpage{}`{=latex}'
@@ -16,7 +16,7 @@ output:
     toc: yes
     fig_height: 3
     includes:
-      in_header: https://github.com/ParalogyX/HAPT/blob/master/preamble.tex
+      in_header: ./report_files//preamble.tex
     latex_engine: xelatex
 urlcolor: blue
 ---
@@ -44,6 +44,22 @@ knitr::opts_chunk$set(echo = TRUE, tidy.opts=list(width.cutoff=80), tidy=TRUE)
 ```
 
 ```{r program-control, message=FALSE, warning=FALSE, include=FALSE}
+# download pictures and preamble for pdf generation
+if (!dir.exists("./report_files")) {
+  dir.create("./report_files")
+}
+
+# Download pictures and preamble if they are not downloaded yet
+if (!file.exists("./report_files//HarvardX.jpg")) {
+  download.file("http://archive.ics.uci.edu/ml/machine-learning-databases/00341/HAPT%20Data%20Set.zip", "./report_files//HarvardX.jpg")
+}
+if (!file.exists("./report_files//edx.png")) {
+  download.file("http://archive.ics.uci.edu/ml/machine-learning-databases/00341/HAPT%20Data%20Set.zip", "./report_files//edx.png")
+}
+if (!file.exists("./report_files//preamble.tex")) {
+  download.file("http://archive.ics.uci.edu/ml/machine-learning-databases/00341/HAPT%20Data%20Set.zip", "./report_files//preamble.tex")
+}
+
 # functions select and filter are masked in other package, but we need only this one
 conflict_prefer("select", "dplyr")
 conflict_prefer("filter", "dplyr")
