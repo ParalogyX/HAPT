@@ -56,10 +56,10 @@ if (!dir.exists("./report_files")) {
 
 # Download pictures and preamble if they are not downloaded yet
 if (!file.exists("./report_files//HarvardX.jpg")) {
-  download.file("https://raw.githubusercontent.com/ParalogyX/HAPT/master/report_files/HarvardX.jpg", "./report_files//HarvardX.jpg")
+  download.file("https://raw.githubusercontent.com/ParalogyX/HAPT/master/report_files/HarvardX.jpg", "./report_files//HarvardX.jpg", mode = "wb")
 }
 if (!file.exists("./report_files//edx.png")) {
-  download.file("https://raw.githubusercontent.com/ParalogyX/HAPT/master/report_files/edx.png", "./report_files//edx.png")
+  download.file("https://raw.githubusercontent.com/ParalogyX/HAPT/master/report_files/edx.png", "./report_files//edx.png", mode = "wb")
 }
 if (!file.exists("./report_files//preamble.tex")) {
   download.file("https://raw.githubusercontent.com/ParalogyX/HAPT/master/report_files/preamble.tex", "./report_files//preamble.tex")
