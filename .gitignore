@@ -3,7 +3,5 @@
 .RData
 .Ruserdata
 *.txt
-*.png
 data
-models
 .RDataTmp
