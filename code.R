@@ -605,36 +605,36 @@ if (!dir.exists("./models")) {
 # Or balanced accuracy: F1 is NaN in nnet
 
 if(!require(caret)) install.packages("caret", dependencies = TRUE)
-if(!require(klaR)) install.packages("klaR", dependencies = TRUE)
-if(!require(kknn)) install.packages("kknn", dependencies = TRUE)
-if(!require(arm)) install.packages("arm", dependencies = TRUE)
-if(!require(mda)) install.packages("mda", dependencies = TRUE)
-if(!require(mboost)) install.packages("mboost", dependencies = TRUE)
-if(!require(nnet)) install.packages("nnet", dependencies = TRUE)
-if(!require(gbm)) install.packages("gbm", dependencies = TRUE)
-if(!require(plyr)) install.packages("plyr", dependencies = TRUE)
-conflict_prefer("mutate", "dplyr")
-conflict_prefer("arrange", "dplyr")
-if(!require(xgboost)) install.packages("xgboost", dependencies = TRUE)
-if(!require(randomForest)) install.packages("randomForest", dependencies = TRUE)
-if(!require(import)) install.packages("import", dependencies = TRUE)
-
-if(!require(googledrive)) install.packages("googledrive")
-
 library(caret)
-library(klaR)
-library(kknn)
-library(arm)
-library(mda)
-library(mboost)
-library(nnet)
-library(gbm)
-#library(plyr)
-library(xgboost)
-library(randomForest)
-#library(import)
 
-library(googledrive)
+
+if(RETRAIN){
+  if(!require(klaR)) install.packages("klaR", dependencies = TRUE)
+  if(!require(kknn)) install.packages("kknn", dependencies = TRUE)
+  if(!require(arm)) install.packages("arm", dependencies = TRUE)
+  if(!require(mda)) install.packages("mda", dependencies = TRUE)
+  if(!require(mboost)) install.packages("mboost", dependencies = TRUE)
+  if(!require(nnet)) install.packages("nnet", dependencies = TRUE)
+  if(!require(gbm)) install.packages("gbm", dependencies = TRUE)
+  if(!require(plyr)) install.packages("plyr", dependencies = TRUE)
+  conflict_prefer("mutate", "dplyr")
+  conflict_prefer("arrange", "dplyr")
+  if(!require(xgboost)) install.packages("xgboost", dependencies = TRUE)
+  if(!require(randomForest)) install.packages("randomForest", dependencies = TRUE)
+  if(!require(import)) install.packages("import", dependencies = TRUE)
+  
+  
+  
+  library(klaR)
+  library(kknn)
+  library(arm)
+  library(mda)
+  library(mboost)
+  library(nnet)
+  library(gbm)
+  library(xgboost)
+  library(randomForest)
+}
 
 models <- c("kknn", "pda", "multinom", "gbm", "xgbTree", "parRF", "nnet")
 
@@ -846,7 +846,6 @@ if (RETRAIN) {
   fit_nnet <- readRDS(file_name)
 }
 
-models <- c("kknn", "pda", "multinom", "gbm", "xgbTree", "parRF", "nnet")
 
 fits <- list(fit_kknn, fit_pda, fit_multinom, 
              fit_gbm,
