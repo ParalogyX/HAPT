@@ -37,6 +37,11 @@ library(tidyverse)
 library(gridExtra)
 library(grid)
 library(conflicted)
+
+# functions select and filter are masked in other package, but we need only this one
+conflict_prefer("select", "dplyr")
+conflict_prefer("filter", "dplyr")
+
 ```
 
 ```{r setup, include=FALSE}
