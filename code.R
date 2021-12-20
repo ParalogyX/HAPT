@@ -199,55 +199,6 @@ plot_confusion <- function(truth, pred, name = "Confusion matrix", prop = FALSE)
     theme(axis.text.x = element_text(angle = 45, vjust = 1.0, hjust=1))
 }
 
-# replace metric
-# multiClassSummary <- function (data, lev = NULL, model = NULL){
-#   
-#   #Load Libraries
-#   require(Metrics)
-#   require(caret)
-#   
-#   #Check data
-#   if (!all(levels(data[, "pred"]) == levels(data[, "obs"]))) 
-#     stop("levels of observed and predicted data do not match")
-#   
-#   #Calculate custom one-vs-all stats for each class
-#   prob_stats <- lapply(levels(data[, "pred"]), function(class){
-#     
-#     #Grab one-vs-all data for the class
-#     pred <- ifelse(data[, "pred"] == class, 1, 0)
-#     obs  <- ifelse(data[,  "obs"] == class, 1, 0)
-#     prob <- data[,class]
-#     
-#     #Calculate one-vs-all AUC and logLoss and return
-#     cap_prob <- pmin(pmax(prob, .000001), .999999)
-#     prob_stats <- c(auc(obs, prob), logLoss(obs, cap_prob))
-#     names(prob_stats) <- c('ROC', 'logLoss')
-#     return(prob_stats) 
-#   })
-#   prob_stats <- do.call(rbind, prob_stats)
-#   rownames(prob_stats) <- paste('Class:', levels(data[, "pred"]))
-#   
-#   #Calculate confusion matrix-based statistics
-#   CM <- confusionMatrix(data[, "pred"], data[, "obs"])
-#   
-#   #Aggregate and average class-wise stats
-#   #Todo: add weights
-#   class_stats <- cbind(CM$byClass, prob_stats)
-#   class_stats <- colMeans(class_stats)
-#   
-#   #Aggregate overall stats
-#   overall_stats <- c(CM$overall)
-#   
-#   #Combine overall with class-wise stats and remove some stats we don't want 
-#   stats <- c(overall_stats, class_stats)
-#   stats <- stats[! names(stats) %in% c('AccuracyNull', 
-#                                        'Prevalence', 'Detection Prevalence')]
-#   
-#   #Clean names and return
-#   names(stats) <- gsub('[[:blank:]]+', '_', names(stats))
-#   return(stats)
-#   
-# }
 
 ###########################################################
 #                         Analysis                        #
@@ -266,6 +217,12 @@ tail(df[c(1:5, 562)])
 # NAs in dataset
 df %>% is.na() %>% sum()
 # no NAs
+
+# types of features and outcome
+unique(lapply(df, class))
+sum(lapply(df, class) == "numeric")
+sum(lapply(df, class) == "factor")
+
 
 # plot outcomes distribution
 df %>% group_by(Activity) %>% mutate(n = n()) %>%
@@ -584,8 +541,8 @@ rm(p1, p2, p3, p4, dummy_plot, legend)
 
 # apply the same pca to non SMOTE df
 # keep 100 features from df_pca
-df_pca_or <- as.data.frame(predict(pca, newdata = df[1:561]))
-df_pca_or <- df_pca_or[1:100] %>% cbind(df[562])
+df_pca_or <- as.data.frame(predict(pca, newdata = df[1:ncol(df)-1]))
+df_pca_or <- df_pca_or[1:100] %>% cbind(df[ncol(df)])
 
 
 
@@ -599,10 +556,6 @@ if (!dir.exists("./models")) {
   dir.create("./models")
 }
 
-# Metric will be average F1-score for multiclass classification
-# It is a good single value metric for unbalanced multiclass problems.
-
-# Or balanced accuracy: F1 is NaN in nnet
 
 if(!require(caret)) install.packages("caret", dependencies = TRUE)
 library(caret)
