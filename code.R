@@ -9,14 +9,32 @@
 #                                                        #
 #  1. This code is made for R version 4.1.2 (2021-11-01) #
 #      Check your R version (type "R.version.string"     #
-#                       in console)                      #
-#  2.                                                      #
+#           in console) and update if needed             #
 #                                                        #
-#  2.    Run complete code with console output            #
-#     can take 30-60 minutes, depends on a computer      #
+#  2. Check Program Control section in the code:         #
+#      it contains RETRAIN flag, if it set to TRUE,      #
+#     all models will be retrained and saved to folder   #
+#     "models". Running time will be ~10-14 hours,       #
+#                 depends on computer;                   #    
+#    If RETRAIN set to False, then, models will not be   #
+#   retrained, but loaded from "models" folder, or,      #
+#   if not found, downloaded from GitHub. Total size     #
+#                     is ~1GB                            #
+#                                                        #
+#  3. Program checks if dataset is in the "data" folder  #
+#          and downloads it if it is not a case.         #
+#                Dataset size is 75.9MB.                 #
+#                                                        #
+#  4. Because program works with files in different      #
+#         folders, it is important to set correct        #
+#       working directory. It is done automatically,     #
+#                   by using function:                   #
+#      setwd(dirname(getActiveDocumentContext()$path))   #
+#    Please, keep cursor in the source window during     #
+#       code running to avoid wrong setting WD           #
 #                                                        #
 # Code itself is well commented as code, for theoretical #
-#     background please look in report.pdf               #
+#        background please look in report.pdf            #
 ##########################################################
 
 
@@ -38,18 +56,6 @@ if(!require(conflicted)) install.packages("conflicted")
 if(!require(UBL)) install.packages("UBL")
 
 
-# for training
-# if(!require(caret)) install.packages("caret")
-# if(!require(kknn)) install.packages("kknn")
-# if(!require(HDclassif)) install.packages("HDclassif")
-# if(!require(earth)) install.packages("earth")
-# if(!require(rrcov)) install.packages("rrcov")
-# if(!require(rrcovHD)) install.packages("rrcovHD")
-# if(!require(xgboost)) install.packages("xgboost")
-# 
-# if(!require(Metrics)) install.packages("Metrics")
-
-
 # Load libraries
 library(rstudioapi)
 library(dplyr)
@@ -58,19 +64,6 @@ library(gridExtra)
 library(grid)
 library(conflicted)
 library(UBL)
-
-# library(caret)
-# library(kknn)
-# library(HDclassif)
-# library(earth)
-# library(rrcov)
-# library(rrcovHD)
-# library(xgboost)
-# library(Metrics)
-
-
-
-
 
 ###########################################################
 #                      PROGRAM CONTROL                    #
@@ -159,10 +152,10 @@ rm(x_train, y_train, x_test, y_test)
 
 
 ###########################################################
-#       Functions
-##########################################################
+#                         Functions                       #
+###########################################################
 
-# Function to extract legend
+# Function to extract legend from ggplot
 g_legend <- function(a.gplot){ 
   tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
   leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
@@ -170,7 +163,7 @@ g_legend <- function(a.gplot){
   legend
 } 
 
-# Function for confusion plot
+# Function for confusion plot output
 plot_confusion <- function(truth, pred, name = "Confusion matrix", prop = FALSE){
   
   if (prop){
@@ -190,7 +183,7 @@ plot_confusion <- function(truth, pred, name = "Confusion matrix", prop = FALSE)
   
   
   ggplot(plt, aes(Prediction,Reference, fill= Freq)) +
-    geom_tile() + geom_text(aes(label=Freq)) +
+    geom_tile() + geom_text(aes(label=Freq), size = 2.8) +
     scale_fill_gradient(low="white", high="#009194") +
     labs(x = "Reference",y = "Prediction") +
     scale_x_discrete(labels=levels(plt$Prediction)) +
@@ -201,7 +194,7 @@ plot_confusion <- function(truth, pred, name = "Confusion matrix", prop = FALSE)
 
 
 ###########################################################
-#                         Analysis                        #
+#                          EDA                            #
 ###########################################################
 
 # dimensions
@@ -314,9 +307,6 @@ grid.arrange(grobs = trends, ncol=3, top = textGrob("Distribution of low varianc
 # remove unnecessary variables:
 rm(dummy_plot, legend, low_5_df, trends, low_5, features_stat)
 
-# find most correlated with outcome features
-
-
 
 # Apply SMOTE before PCA
 df_smote <- SmoteClassif(Activity ~ ., dat = df)
@@ -365,7 +355,7 @@ var_explained[1:400,] %>%
 # plot with two first PC's
 df_pca <- as.data.frame(pca$x) %>% cbind(df_smote[ncol(df_smote)])
 
-# visualize  classification of two PC
+# visualize classification of two PC
 
 df_pca %>% ggplot(aes(x = PC1, y = PC2, color = Activity)) +
   geom_point() +
@@ -497,7 +487,6 @@ invisible(legend <- g_legend(dummy_plot))
 
 grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(10, 1),  top = textGrob("Postural transitions on eight PC's", x = 0.023, hjust = 0))
 
-# It doesn't look very distinguishable
 
 # Check higher dimensions
 p1 <- df_pca %>% filter(Activity %in% postural_trans) %>%
@@ -535,21 +524,21 @@ invisible(legend <- g_legend(dummy_plot))
 
 grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(10, 1),  top = textGrob("Postural transitions on PC's 9-16", x = 0.023, hjust = 0))
 
-#rm(p1, p2, p3, p4, dummy_plot, legend, df_pca, pca, var_explained)
+# remove unnecessary variables:
 rm(p1, p2, p3, p4, dummy_plot, legend)
 
 
-# apply the same pca to non SMOTE df
-# keep 100 features from df_pca
-df_pca_or <- as.data.frame(predict(pca, newdata = df[1:ncol(df)-1]))
-df_pca_or <- df_pca_or[1:100] %>% cbind(df[ncol(df)])
+
 
 
 
 ###########################################################
 #                      Model building                     #
 ###########################################################
-
+# apply the same pca to non SMOTE df
+# keep 100 features from df_pca
+df_pca_or <- as.data.frame(predict(pca, newdata = df[1:ncol(df)-1]))
+df_pca_or <- df_pca_or[1:100] %>% cbind(df[ncol(df)])
 
 # If "Data" folder is not exist, create it
 if (!dir.exists("./models")) {
@@ -560,36 +549,31 @@ if (!dir.exists("./models")) {
 if(!require(caret)) install.packages("caret", dependencies = TRUE)
 library(caret)
 
-
+# load libraries only if retrain, to save time: it can take up to 1 hour to install it on clean R
 if(RETRAIN){
-  if(!require(klaR)) install.packages("klaR", dependencies = TRUE)
   if(!require(kknn)) install.packages("kknn", dependencies = TRUE)
-  if(!require(arm)) install.packages("arm", dependencies = TRUE)
   if(!require(mda)) install.packages("mda", dependencies = TRUE)
-  if(!require(mboost)) install.packages("mboost", dependencies = TRUE)
   if(!require(nnet)) install.packages("nnet", dependencies = TRUE)
   if(!require(gbm)) install.packages("gbm", dependencies = TRUE)
   if(!require(plyr)) install.packages("plyr", dependencies = TRUE)
   conflict_prefer("mutate", "dplyr")
   conflict_prefer("arrange", "dplyr")
   if(!require(xgboost)) install.packages("xgboost", dependencies = TRUE)
+  if(!require(e1071)) install.packages("e1071", dependencies = TRUE)
   if(!require(randomForest)) install.packages("randomForest", dependencies = TRUE)
+  if(!require(foreach)) install.packages("foreach", dependencies = TRUE)
   if(!require(import)) install.packages("import", dependencies = TRUE)
   
   
-  
-  library(klaR)
   library(kknn)
-  library(arm)
   library(mda)
-  library(mboost)
   library(nnet)
   library(gbm)
   library(xgboost)
   library(randomForest)
 }
 
-models <- c("kknn", "pda", "multinom", "gbm", "xgbTree", "parRF", "nnet")
+
 
 
 control <- trainControl(method="cv", number = 5, classProbs= TRUE, summaryFunction = multiClassSummary, 
@@ -600,24 +584,10 @@ control <- trainControl(method="cv", number = 5, classProbs= TRUE, summaryFuncti
 
 metric <- "Mean_Balanced_Accuracy"
 
-#https://uwspace.uwaterloo.ca/bitstream/handle/10012/10521/Liao_Renfang.pdf?sequence=1
 
-# https://www.edureka.co/blog/naive-bayes-in-r/
-# https://cran.r-project.org/web/packages/klaR/klaR.pdf
-
-# http://chakkrit.com/assets/papers/tantithamthavorn2017optimization.pdf
-
-
-
-
-
-
-
-
-
-############################
-# Train knn     ####
-###########################
+#################
+#   Train knn   #
+#################
 
 file_name <- "./models//kknn.rds"
 if (RETRAIN) {
@@ -640,11 +610,9 @@ if (RETRAIN) {
 }
 
 
-
-
-############################
-# Train pda     ####
-###########################
+#################
+#   Train pda   #
+#################
 
 file_name <- "./models//pda.rds"
 if (RETRAIN) {
@@ -666,9 +634,10 @@ if (RETRAIN) {
   fit_pda <- readRDS(file_name)
 }
 
-############################
-# Train multinom     ####
-###########################
+##################
+# Train multinom #
+##################
+
 
 file_name <- "./models//multinom.rds"
 if (RETRAIN) {
@@ -691,11 +660,9 @@ if (RETRAIN) {
 }
 
 
-
-############################
-# Train gbm     ####
-###########################
-# https://www.listendata.com/2015/07/gbm-boosted-models-tuning-parameters.html
+##################
+#   Train gbm    #
+##################
 
 file_name <- "./models//gbm.rds"
 if (RETRAIN) {
@@ -718,15 +685,9 @@ if (RETRAIN) {
   fit_gbm <- readRDS(file_name)
 }
 
-
-
-
-
-
-
-############################
-# Train xgbTree     ####
-###########################
+##################
+# Train xgbTree  #
+##################
 
 file_name <- "./models//xgbTree.rds"
 if (RETRAIN) {
@@ -748,11 +709,9 @@ if (RETRAIN) {
   fit_xgbTree <- readRDS(file_name)
 }
 
-
-
-############################
-# Train parRF     ####
-###########################
+##################
+#  Train parRF   #
+##################
 
 file_name <- "./models//parRF.rds"
 if (RETRAIN) {
@@ -774,10 +733,9 @@ if (RETRAIN) {
   fit_parRF <- readRDS(file_name)
 }
 
-
-############################
-# Train nnet     ####
-###########################
+##################
+#  Train nnet   #
+##################
 
 file_name <- "./models//nnet.rds"
 if (RETRAIN) {
@@ -800,13 +758,31 @@ if (RETRAIN) {
 }
 
 
+
+
+######################
+#  Results analysis  #
+######################
+models <- c("kknn", "pda", "multinom", "gbm", "xgbTree", "parRF", "nnet")
 fits <- list(fit_kknn, fit_pda, fit_multinom, 
              fit_gbm,
              fit_xgbTree, fit_parRF, fit_nnet)
-
 names(fits) <- models
 
-# results
+result_df <- data.frame(t(sapply(models, function(n){
+  pos_max <- which.max(fits[[n]]$results$Mean_Balanced_Accuracy)
+  c(fits[[n]]$method, 
+    fits[[n]]$results$Mean_Balanced_Accuracy[pos_max],
+    fits[[n]]$results$Kappa[pos_max],
+    fits[[n]]$results$Accuracy[pos_max],
+    fits[[n]]$times$everything["elapsed"])
+})))
+
+colnames(result_df) <- c("Name", "Mean_Balanced_Accuracy", "Kappa", "Accuracy", "Time")
+result_df[2:5] <- lapply(result_df[2:5],as.numeric)
+result_df[, 2:5] <- round(result_df[, 2:5], digits = 4)
+
+result_df
 
 # plot kappa
 results_kappa <- data.frame(t(sapply(models, function(n){
@@ -863,54 +839,34 @@ results_bal_Acc %>% mutate(Time = as.numeric(Time) / 60, Mean_Balanced_Accuracy 
 
 
 
-#plot F1-mean // in gbm is NaN
-# results_F1 <- data.frame(t(sapply(models, function(n){
-#   pos_max <- which.max(fits[[n]]$results$Mean_F1)
-#   c(fits[[n]]$method, fits[[n]]$results$Mean_F1[pos_max], fits[[n]]$times$everything["elapsed"])
-# })))
-# 
-# colnames(results_F1) <- c("Name", "Mean_F1", "Time")
-# 
-# 
-# results_F1 %>% mutate(Time = as.numeric(Time) / 60, Mean_F1 = as.numeric(Mean_F1)) %>% ggplot(aes(x = Time, y = Mean_F1, color = Name))+
-#   geom_point(size = 1) + geom_text(aes(label = Name), check_overlap = TRUE) + ggtitle("Full dataset training Mean_F1")
-# 
 
-# pda, multinom and rf are the best, but rf is very long
-
-# plot train ds
+# plot train confusion matrices
 lapply(models, function(model){
   plot_confusion(fits[[model]]$pred$obs, fits[[model]]$pred$pred, name = paste(model, "train"))
 })
-# 
-# 
-# #plot validation
-# lapply(models, function(model){
-#   #pred <- predict(fits$xgbTree, df_validation[1:561])
-#   plot_confusion(df_validation$Activity, predict(fits[[model]], df_validation[1:561]), name = paste(model, "validation"))
-# })
-# 
 
+modelLookup("multinom")
 
 # plot decay vs metrics
 fit_multinom$results %>% ggplot(aes(x = decay)) +
-  geom_line(aes(y = Kappa), color = "red") + 
-  geom_line(aes(y = Mean_Balanced_Accuracy), color = "green")
+  geom_line(aes(y = Mean_Balanced_Accuracy), color = "blue") +
+  ggtitle("Multinom decay vs balanced accuracy") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 15))
 
+# Cross-validation: bootstrap
 control <- trainControl(method="boot", classProbs= TRUE, summaryFunction = multiClassSummary, 
                         savePredictions = "final",
                         search="grid",
                         verbose = PRINT_DEBUG)
 
-file_name <- "./models//multinom_expand_grid.rds"
-
-modelLookup("multinom")
-
+# extended multinom grid
 multinom_grid <- expand.grid(decay = c(0.1, 0.5, 1, 3, 5, 8, 10, 13, 15))
+
+file_name <- "./models//multinom_expand_grid.rds"
 
 if (RETRAIN) {
   time_start <- unclass(Sys.time())
-  #xgbFit <- train(Activity ~ ., data = df, method = "xgbTree", metric = metric, trControl = control, tuneGrid = xgbTreeGrid)
   fit_multinom_grid <- train(Activity ~ ., data = df_pca_or, method = "multinom", metric = metric,
                              trControl = control, MaxNWts = 15000, tuneGrid = multinom_grid)
   time_end <- unclass(Sys.time())
@@ -925,20 +881,23 @@ if (RETRAIN) {
   # read from file
   fit_multinom_grid <- readRDS(file_name)
 }
+
 print(fit_multinom$results$Mean_Balanced_Accuracy)
 print(fit_multinom_grid$results$Mean_Balanced_Accuracy)
 # plot decay vs metrics
 fit_multinom_grid$results %>% ggplot(aes(x = decay)) +
-  geom_line(aes(y = Kappa), color = "red") + 
-  geom_line(aes(y = Mean_Balanced_Accuracy), color = "green")
+  geom_line(aes(y = Mean_Balanced_Accuracy), color = "blue") +
+  ggtitle("Multinom decay vs balanced accuracy") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 15))
 
-
-plot(fit_multinom_grid)
 
 plot_confusion(fit_multinom_grid$pred$obs, fit_multinom_grid$pred$pred, name = "Multinom train")
+
+
+
+
 # build final model
-
-
 
 decay = fit_multinom_grid$bestTune$decay
 
@@ -969,12 +928,21 @@ if (RETRAIN) {
   fit_multinom_fin_100 <- readRDS(file_name)
 }
 
+# add results to the table
+result_multinom <- data.frame("multinom_optimal_PCA100",
+                     fit_multinom_fin_100$results$Mean_Balanced_Accuracy,
+                     fit_multinom_fin_100$results$Kappa,
+                     fit_multinom_fin_100$results$Accuracy,
+                     fit_multinom_fin_100$times$everything["elapsed"])
 
-# fit_multinom$results %>% ggplot(aes(x = decay)) +
-#   geom_line(aes(y = Kappa), color = "red") + 
-#   geom_line(aes(y = Mean_Balanced_Accuracy), color = "green")
+colnames(result_multinom) <- c("Name", "Mean_Balanced_Accuracy", "Kappa", "Accuracy", "Time")
 
-print(fit_multinom_fin_100$results$Mean_Balanced_Accuracy)
+result_multinom[2:5] <- lapply(result_multinom[2:5],as.numeric)
+result_multinom[, 2:5] <- round(result_multinom[, 2:5], digits = 4)
+result_df <- rbind(result_df, result_multinom)
+
+result_df
+
 plot_confusion(fit_multinom_fin_100$pred$obs, fit_multinom_fin_100$pred$pred, name = "Multinom (100 PC) 500 iter train")
 
 
@@ -1002,17 +970,31 @@ if (RETRAIN) {
   fit_multinom_fin_200 <- readRDS(file_name)
 }
 
-print(fit_multinom_fin_200$results$Mean_Balanced_Accuracy)
+# add results to the table
+result_multinom <- data.frame("multinom_optimal_PCA200",
+                              fit_multinom_fin_200$results$Mean_Balanced_Accuracy,
+                              fit_multinom_fin_200$results$Kappa,
+                              fit_multinom_fin_200$results$Accuracy,
+                              fit_multinom_fin_200$times$everything["elapsed"])
+
+colnames(result_multinom) <- c("Name", "Mean_Balanced_Accuracy", "Kappa", "Accuracy", "Time")
+
+result_multinom[2:5] <- lapply(result_multinom[2:5],as.numeric)
+
+result_multinom[, 2:5] <- round(result_multinom[, 2:5], digits = 4)
+
+result_df <- rbind(result_df, result_multinom)
+
+result_df
+
+
 plot_confusion(fit_multinom_fin_200$pred$obs, fit_multinom_fin_200$pred$pred, name = "Multinom (200 PC) 500 iter train")
 
 # try with original dataset
-
-
 file_name <- "./models//multinom_final_orig.rds"
 
 if (RETRAIN) {
   time_start <- unclass(Sys.time())
-  #xgbFit <- train(Activity ~ ., data = df, method = "xgbTree", metric = metric, trControl = control, tuneGrid = xgbTreeGrid)
   fit_multinom_orig <- train(Activity ~ ., data = df, method = "multinom", metric = metric,
                                 trControl = control, MaxNWts = 15000, maxit = 500, tuneGrid = multinomGrid_fin)
   time_end <- unclass(Sys.time())
@@ -1028,35 +1010,63 @@ if (RETRAIN) {
   fit_multinom_orig <- readRDS(file_name)
 }
 
-print(fit_multinom_orig$results$Mean_Balanced_Accuracy)
+
+# add results to the table
+result_multinom <- data.frame("multinom_optimal_orig",
+                              fit_multinom_orig$results$Mean_Balanced_Accuracy,
+                              fit_multinom_orig$results$Kappa,
+                              fit_multinom_orig$results$Accuracy,
+                              fit_multinom_orig$times$everything["elapsed"])
+
+colnames(result_multinom) <- c("Name", "Mean_Balanced_Accuracy", "Kappa", "Accuracy", "Time")
+
+result_multinom[2:5] <- lapply(result_multinom[2:5],as.numeric)
+result_multinom[, 2:5] <- round(result_multinom[, 2:5], digits = 4)
+result_df <- rbind(result_df, result_multinom)
+
+result_df
+
 plot_confusion(fit_multinom_orig$pred$obs, fit_multinom_orig$pred$pred, name = "Multinom (orig dataset) 500 iter train")
 
+# Final model function
+multinom_final_predict <- function(features_space){
+  val_pca <- predict(pca, newdata = features_space)
+  predict(fit_multinom_fin_200, val_pca[,1:200])
+}
 
 
+###########################################################
+#                     Final validation                    #
+###########################################################
 
-# to print statistic
-# check with maxit = 1000
-# try with pca200 and with original
-# boot .642?
+truth <- df_validation$Activity
+pred <- multinom_final_predict(df_validation[1:561]) 
 
-# Final validation
+xtab <- table(pred, truth)
 
-# transofrm validation
-val_pca <- predict(pca, newdata = df_validation[1:561])
+cm <- confusionMatrix(xtab)
 
-plot_confusion(df_validation$Activity, predict(fit_multinom_grid, val_pca[,1:100]), name = "Multinom PCA100 (100 epoch) validation")
+xtab <- prop.table(table(pred, truth))
+cm_prop <- confusionMatrix(xtab)
 
-plot_confusion(df_validation$Activity, predict(fit_multinom_fin_100, val_pca[,1:100]), name = "Multinom PCA100 validation")
+result_final_val <- data.frame("multinom_final_validation",
+                              mean(cm$byClass[,"Balanced Accuracy"]),
+                              cm$overall["Kappa"],
+                              cm$overall["Accuracy"],
+                              "Not applicable")
 
-plot_confusion(df_validation$Activity, predict(fit_multinom_fin_200, val_pca[,1:200]), name = "Multinom PCA200 validation")
+colnames(result_final_val) <- c("Name", "Mean_Balanced_Accuracy", "Kappa", "Accuracy", "Time")
 
-plot_confusion(df_validation$Activity, predict(fit_multinom_orig, df_validation[1:561]), name = "Multinom full validation")
+result_final_val[2:4] <- lapply(result_final_val[2:4],as.numeric)
+result_final_val[, 2:4] <- round(result_final_val[, 2:4], digits = 4)
+result_df <- rbind(result_df, result_final_val)
+
+result_df
 
 
-print(fit_multinom_grid$results$Mean_Balanced_Accuracy)
-print(fit_multinom_fin_100$results$Mean_Balanced_Accuracy)
-print(fit_multinom_fin_200$results$Mean_Balanced_Accuracy)
-print(fit_multinom_orig$results$Mean_Balanced_Accuracy)
+plot_confusion(df_validation$Activity, multinom_final_predict(df_validation[1:561]))
+
+
 
 total_time_end <- unclass(Sys.time())
 total_time <- total_time_end - total_time_start
