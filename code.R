@@ -164,6 +164,7 @@ g_legend <- function(a.gplot){
 } 
 
 # Function for confusion plot output
+# set prop = TRUE to get percentage instead of class output
 plot_confusion <- function(truth, pred, name = "Confusion matrix", prop = FALSE){
   
   if (prop){
@@ -574,7 +575,7 @@ if(RETRAIN){
 }
 
 
-
+# Train control and metric for all models to test
 
 control <- trainControl(method="cv", number = 5, classProbs= TRUE, summaryFunction = multiClassSummary, 
                         savePredictions = "final",
@@ -1064,7 +1065,7 @@ result_df <- rbind(result_df, result_final_val)
 result_df
 
 
-plot_confusion(df_validation$Activity, multinom_final_predict(df_validation[1:561]))
+plot_confusion(df_validation$Activity, multinom_final_predict(df_validation[1:561]), name = "Validation confusion matrix")
 
 
 

@@ -2,7 +2,7 @@
 title: "HarvardX Data Science program capstone project"
 subtitle: 'Human Activity and Postural Transisions (HAPT) recognition'
 author: "Vladimir Pedchenko"
-date: "11/24/2021"
+date: "12/23/2021"
 header-includes:
 - \usepackage{titling}
 - \pretitle{\begin{center}\LARGE\includegraphics[width=6cm]{./report//HarvardX.jpg}\LARGE\includegraphics[width=3cm]{./report//edx.png}\\[\bigskipamount]\vspace{5cm}}
@@ -120,6 +120,7 @@ plot_confusion <- function(truth, pred, name = "Confusion matrix", prop = FALSE)
 
 ```
 
+\newpage
 
 # Introduction
 
@@ -135,7 +136,7 @@ Human activities recognition is the necessary basis for the development of many 
 
 -   VR/AR applications.
 
-In the past, to track human activities was not possible without expensive hardware which had to be mounted on the body and connected by wires to data processing computer. Fortunately, it is not a problem anymore: most of the people always have smartphone or/and smartwatch with them. These devises have set of sensors, such as accelerometer and gyroscope which able to provide an information about device movements and position. These signals can be preprocessed and be used as input for machine learning algorithms to recognize an activity of the person who has the device in hands or pocket.
+In the past, tracking human activities was not possible without expensive hardware which had to be mounted on the body and connected by wires to data processing computer. Fortunately, it is not a problem anymore: most of the people always have smartphone or/and smartwatch with them. These devises have set of sensors, such as accelerometer and gyroscope which able to provide an information about device movements and position. These signals can be preprocessed and be used as input for machine learning algorithms to recognize an activity of the person who has the device in hands or pocket.
 
 Goal of the project is to build a model, which can recognize human activities based on preprocessed smartphone sensors data.
 
@@ -363,6 +364,7 @@ Additional vectors obtained by averaging the signals in a signal window sample. 
 -   *tBodyGyroJerkMean*
 
 # Exploratory Data Analysis
+
 Goal of Exploratory Data Analysis is to get information of the dataset, distributions of features and outcomes, their types. Possibility for feature reduction will be considered here as well. Interpretability of the final model is not a priority for this task, because features are mathematically transformed sensors signals, which will be interpreted only by computer/smartphone.
 
 First, let's get some general information about dataset.
@@ -381,13 +383,16 @@ The dataset contains `r nrow(df)` rows and `r ncol(df)` columns. There are `r df
 knitr::kable(head(df[c(1:3, 562)], 10), caption = "First 10 rows of the dataset with three features and outcome", row.names = TRUE, tidy=TRUE)
 knitr::kable(tail(df[c(1:3, 562)], 10), caption = "Last 10 rows of the dataset with three features and outcome", row.names = TRUE, tidy=TRUE)
 ```
+
 Types of all features should be numeric. To check it we will look on all classes are in the dataframe and then count how many of each class:
+
 ```{r var-classes}
 unique(lapply(df, class))
 sum(lapply(df, class) == "numeric")
 sum(lapply(df, class) == "factor")
 class(df$Activity)
 ```
+
 Only one variable has class "factor", this is the outcome variable "Activity". All other variables are numeric.
 
 Distribution of outcomes in the dataset:
@@ -507,14 +512,15 @@ Unfortunately, it is not possible to effectively visualize all 561 features, the
 
 Principal component analysis (PCA) is the process of computing the principal components and using them to perform a change of basis on the data, sometimes using only the first few principal components and ignoring the rest. PCA is defined as an orthogonal linear transformation that transforms the data to a new coordinate system such that the greatest variance by some scalar projection of the data comes to lie on the first coordinate (called the first principal component), the second greatest variance on the second coordinate, and so on.
 
-In order to equalize importance of rare classes with common classes, Synthetic Minority Oversampling Technique (SMOTE) will be performed before applying PCA. SMOTE works by selecting examples that are close in the feature space, drawing a line between the examples in the feature space and drawing a new sample at a point along that line.
-Following code is used to balance the dataset with SMOTE:
+In order to equalize importance of rare classes with common classes, Synthetic Minority Oversampling Technique (SMOTE) will be performed before applying PCA. SMOTE works by selecting examples that are close in the feature space, drawing a line between the examples in the feature space and drawing a new sample at a point along that line. Following code is used to balance the dataset with SMOTE:
 
 ```{r SMOTE}
 # Apply SMOTE before PCA
 df_smote <- SmoteClassif(Activity ~ ., dat = df)
 ```
+
 Let's plot outcome distribution after SMOTE is applied:
+
 ```{r outcome_distribution_smote, echo=FALSE, fig.cap = "Distribution of activities after SMOTE", fig.align='center', fig.height= 5}
 df_smote %>% group_by(Activity) %>% mutate(n = n()) %>%
   ggplot(aes(reorder(Activity, -n))) +
@@ -525,11 +531,15 @@ df_smote %>% group_by(Activity) %>% mutate(n = n()) %>%
   theme_bw() +
   theme(axis.text.x=element_text(angle = -60, hjust = 0))
 ```
+
 Now we can calculate principal components using function *prcomp* with argument *scale = TRUE*, which scales the variables to have unit variance before the analysis takes place:
+
 ```{r pca}
 pca <- prcomp(df_smote[-ncol(df_smote)], scale. = TRUE)
 ```
+
 Visualizing the variance explained by each component helps us identifying visually, how many principal components are needed to explain the data variation:
+
 ```{r pca-explained, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Variance explained by each of principal components", fig.align='center', fig.height=20, fig.width=20}
 var_explained <- data.frame(PC= paste0("PC",1:561),
                                var_explained=(pca$sdev)^2/sum((pca$sdev)^2))
@@ -544,6 +554,7 @@ var_explained[1:20,] %>%
         axis.text=element_text(size=20),
         axis.title=element_text(size=30))
 ```
+
 ```{r pca-cumulative, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Cumulative variance explained by each of principal components", fig.align='center', fig.height=20, fig.width=20}
 var_explained[1:400,] %>%
   ggplot(aes(x=as.numeric(factor(PC, levels = PC)), y=cumsum(var_explained * 100), group = 1)) +
@@ -557,9 +568,11 @@ var_explained[1:400,] %>%
         axis.text=element_text(size=20),
         axis.title=element_text(size=30))
 ```
+
 As we can see on Figure 5, about half of variances can be explained by two principal components. But looking on the total variance explained by principal components (Figure 6), we can see, that to explain at least 95% of variance, we need about 100 principal components. Conclusion is that our data space is indeed very multidimensional.
 
 Let's check which classes are easily distinguished by few first principal components:
+
 ```{r all-two-PCs , echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "First two principal components classification plot", fig.align='center', fig.height=20, fig.width=20}
 # plot with two first PC's
 df_pca <- as.data.frame(pca$x) %>% cbind(df_smote[ncol(df_smote)])
@@ -577,7 +590,9 @@ df_pca %>% ggplot(aes(x = PC1, y = PC2, color = Activity)) +
         legend.text=element_text(size=20)) +
         guides(colour = guide_legend(override.aes = list(size=10)))
 ```
+
 We can see, that some of the classes are very easily can be distinct one from another, but some of them occupy the same area when projecting on the first two principal components. To see, how classes can be easily distinguished from others, let us combine them into three groups:
+
 ```{r class-combinations}
 # for better visualization we will introduce some combined classes to distinguish activities
 static <- c("LAYING", "SITTING", "STANDING")
@@ -585,7 +600,9 @@ moving <- c("WALKING", "WALKING_DOWNSTAIRS", "WALKING_UPSTAIRS")
 postural_trans <- activity_labels$Activity[!activity_labels$Activity %in% c(static, moving)]
 
 ```
+
 Now, we can see, how different groups are distinguished:
+
 ```{r groups-two-PCs , echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "First two principal components for activity type classification", fig.align='center', fig.height=20, fig.width=20}
 df_pca %>% mutate(Activity_type = ifelse(Activity %in% static, "Static", 
                                   ifelse(Activity %in% moving, "Moving", 
@@ -601,8 +618,9 @@ df_pca %>% mutate(Activity_type = ifelse(Activity %in% static, "Static",
         legend.text=element_text(size=20)) +
         guides(colour = guide_legend(override.aes = list(size=10)))
 ```
-Looking on the Figure 8, we can conclude that type of activity is well explained by two first principal components. 
-Here we have to deal with extremely multidimensional predictors space, therefore for visualization of classification inside the groups four plots for each group will be plotted.
+
+Looking on the Figure 8, we can conclude that type of activity is well explained by two first principal components. Here we have to deal with extremely multidimensional predictors space, therefore for visualization of classification inside the groups four plots for each group will be plotted.
+
 ```{r pca-static, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Static activities on eight PC's", fig.align='center', fig.height=20, fig.width=20}
 # check classification inside groups
 # Static activities
@@ -653,6 +671,7 @@ invisible(legend <- g_legend(dummy_plot))
 grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(10, 1),  top = textGrob("Static activities on eight PC's", gp=gpar(fontsize=40,font=1), x = 0.023, hjust = 0))
 
 ```
+
 ```{r pca-moving, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Moving activities on eight PC's", fig.align='center', fig.height=20, fig.width=20}
 # Moving activities
 p1 <- df_pca %>% filter(Activity %in% moving) %>%
@@ -701,6 +720,7 @@ invisible(legend <- g_legend(dummy_plot))
 
 grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(10, 1),  top = textGrob("Moving activities on eight PC's", gp=gpar(fontsize=40,font=1), x = 0.023, hjust = 0))
 ```
+
 ```{r pca-trans, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Postural transitions on eight PC's", fig.align='center', fig.height=20, fig.width=20}
 # Postural transitions
 p1 <- df_pca %>% filter(Activity %in% postural_trans) %>%
@@ -749,7 +769,9 @@ invisible(legend <- g_legend(dummy_plot))
 
 grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(10, 1),  top = textGrob("Postural transitions on eight PC's", gp=gpar(fontsize=40,font=1), x = 0.023, hjust = 0))
 ```
+
 Classes inside "static" and "moving" groups can mostly be distinguished from each other using only 2-8 dimensional principal components space. Postural transitions difference is not clearly seen in 8 dimensions. Plot in higher principal components dimensions:
+
 ```{r pca-trans-high, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Postural transitions on PC's 9-16", fig.align='center', fig.height=20, fig.width=20}
 # Check higher dimensions
 p1 <- df_pca %>% filter(Activity %in% postural_trans) %>%
@@ -800,16 +822,19 @@ grid.arrange(arrangeGrob(p1, p2, p3, p4, ncol=2), legend, nrow = 2, heights = c(
 
 rm(p1, p2, p3, p4, dummy_plot, legend)
 ```
+
 There is a probability that some of classes can be distinguished in higher dimensions.
 
 ## Summary
-- We are dealing with very high-dimensional data;
-- It is multiclass problem with unbalanced data;
-- Some classes are intersects with another by their nature, e.g. "STANDING" and "SITTING" (see Figure 9). Some uncertainty in these classes distinguishing is expected;
-- All features are already scaled and have numeric class;
-- There are no missing values in the dataset.
+
+-   We are dealing with very high-dimensional data;
+-   It is multiclass classification problem with unbalanced data;
+-   Some classes are intersects with another by their nature, e.g. "STANDING" and "SITTING" (see Figure 9). Some uncertainty in these classes distinguishing is expected;
+-   All features are already scaled and have numeric class;
+-   There are no missing values in the dataset.
 
 # Model building
+
 ```{r libraries_learning, warning=FALSE, include=FALSE, echo=FALSE}
 # If "Data" folder is not exist, create it
 if (!dir.exists("./models")) {
@@ -849,7 +874,9 @@ if(RETRAIN){
 }
 
 ```
+
 For multiclass problem 7 different machine learning (ML) algorithms will be tested. Initially, default parameters gridsearch and 5-fold cross validation will be used. Predictors for ML will be transformed by PCA and only 100 of them will be used. From Figure 6 we can see, that it should explain about 95% of outcome variability and will reduce training and cross-validation time. To transform original dataset the following code is used:
+
 ```{r pca_to_original_df}
 # apply the same pca to non SMOTE df
 # keep 100 features from df_pca
@@ -857,8 +884,9 @@ df_pca_or <- as.data.frame(predict(pca, newdata = df[1:ncol(df)-1]))
 df_pca_or <- df_pca_or[1:100] %>% cbind(df[ncol(df)])
 
 ```
-All models will be trained using *trainControl* function from the *caret* package.
-Metric for best parameter selection will be balanced accuracy, because our dataset is not balanced and we do not have any "important" or "not important" classes in the dataset.
+
+All models will be trained using *trainControl* function from the *caret* package. Metric for best parameter selection will be balanced accuracy, because our dataset is not balanced and we do not have any "important" or "not important" classes in the dataset.
+
 ```{r training_params}
 control <- trainControl(method="cv", number = 5, classProbs= TRUE,
                         summaryFunction = multiClassSummary, 
@@ -870,15 +898,19 @@ control <- trainControl(method="cv", number = 5, classProbs= TRUE,
 metric <- "Mean_Balanced_Accuracy"
 
 ```
+
 Models performances will be compared after all seven models are trained.
 
 ## k-nearest neighbors algorithm
-The k-nearest neighbors algorithm (k-NN) is a non-parametric classification method. It is used for classification and regression. In both cases, the input consists of the k closest training examples in a data set.
-In k-NN classification, the output is a class membership. An object is classified by a plurality vote of its neighbors, with the object being assigned to the class most common among its *k* nearest neighbors (*k* is a positive integer). If *k = 1*, then the object is simply assigned to the class of that single nearest neighbor.
+
+The k-nearest neighbors algorithm (k-NN) is a non-parametric classification method. It is used for classification and regression. In both cases, the input consists of the k closest training examples in a data set. In k-NN classification, the output is a class membership. An object is classified by a plurality vote of its neighbors, with the object being assigned to the class most common among its *k* nearest neighbors (*k* is a positive integer). If *k = 1*, then the object is simply assigned to the class of that single nearest neighbor. Nearest neighbors are found according to Minkowski distance: $$ D(X,Y) = (\sum_{i=1}^{n}|x_{i} - y_{i}|^{p})^{\frac{1}{p}}, $$
+
+where $D(X,Y)$ is distance between two points, $n$ - number of dimensions and $p$ is parameter of Minkowski distance, which equals 2 by default.
 
 k-NN implementation from *kknn* library will be used with default parameter (*k*) search grid. 5-fold cross-validation will be used to find optimal *k*.
 
 The following code will be used to train k-NN model (it will load trained model from file if *RETRAIN* bit set to False):
+
 ```{r knn-5-fold-train}
 file_name <- "./models//kknn.rds"
 if (RETRAIN) {
@@ -901,10 +933,15 @@ if (RETRAIN) {
 }
 
 ```
+
 ## Penalized Discriminant Analysis
-Fisher's linear discriminant analysis (LDA) is a popular data-analytic tool for studying the relationship between a set of predictors and a categorical response. It uses to to find a linear combination of features that characterizes or separates two or more classes of objects or events. Penalized Discriminant Analysis (PDA) is a penalized version of LDA. PDA shrinks the coefficients by penalizing the regression model with a penalty term called L2-norm, which is the sum of the squared coefficients. PDA algorithm from *mda* library will be used.
+
+Fisher's linear discriminant analysis (LDA) is a popular data-analytic tool for studying the relationship between a set of predictors and a categorical response. It uses to to find a linear combination of features that characterizes or separates two or more classes of objects or events. LDA classification is based on Mahalanobis distances $(x - m{j}) \sum_{W}^{-1}(x - m^{j})$ to class centroids $m_{j}$, where $\sum_{W}$ is the pooled within-class covariance of the predictors $x$. Data reduction entails a sequence of unit-variance, linear-discriminant variables $\beta_{k}^{T}x$, chosen to maximize successively $\beta_{k}^{T}\sum_{Bet}\beta_{k}$, with $\sum_{Bet}$ the between-class covariance matrix. These discriminant variables represent a subspace for which the class centroids are spread out as much as possible.
+
+Penalized Discriminant Analysis (PDA) is a penalized version of LDA. PDA shrinks the coefficients by penalizing the regression model with a penalty term called L2-norm, which is the sum of the squared coefficients. PDA algorithm from *mda* library will be used.
 
 PDA will be trained the same way as k-NN.
+
 ```{r pda-5-fold-train}
 file_name <- "./models//pda.rds"
 if (RETRAIN) {
@@ -926,8 +963,13 @@ if (RETRAIN) {
   fit_pda <- readRDS(file_name)
 }
 ```
+
 ## Multinomial logistic regression
-Multinomial logistic regression (MNL) is a classification method that generalizes logistic regression to multiclass problems, i.e. with more than two possible discrete outcomes. That is, it is a model that is used to predict the probabilities of the different possible outcomes of a categorically distributed dependent variable, given a set of independent variables. *nnet* library contains MNL implementation:
+
+Multinomial logistic regression (MNL) is a classification method that generalizes logistic regression to multiclass problems, i.e. with more than two possible discrete outcomes. Logistic regression equation can be written as:$$log(\frac{p}{1-p}) = \beta_{0} + \beta_{1}x_{1} + \beta_{2}x_{2} + ... + \beta_{n}x_{n} ,$$
+
+where $p$ is probability of correctly guessed outcome from features space $x$. Like binary logistic regression, multinomial logistic regression uses maximum likelihood estimation to evaluate the probability of categorical membership, but do it for each class separately. That is, it is a model that is used to predict the probabilities of the different possible outcomes of a categorically distributed dependent variable, given a set of independent variables. *nnet* library contains MNL implementation:
+
 ```{r multinom-5-fold-train}
 file_name <- "./models//multinom.rds"
 if (RETRAIN) {
@@ -949,9 +991,11 @@ if (RETRAIN) {
   fit_multinom <- readRDS(file_name)
 }
 ```
+
 ## Stochastic Gradient Boosting
-Gradient boosting constructs additive regression models by sequentially fitting a simple parameterized function (base learner) to current “pseudo”-residuals by least squares at each iteration. The pseudo-residuals are the gradient of the loss functional being minimized, with respect to the model values at each training data point evaluated at the current step.Accuracy and execution speed of gradient boosting can be substantially improved by incorporating randomization into the procedure. Specifically, at each iteration a subsample of the training data is drawn at random (without replacement) from the full training data set. This randomly selected subsample is then used in place of the full sample to fit the base learner and compute the model update for the current iteration. This randomized approach also increases robustness against overcapacity of the base learner.
-Stochastic Gradient Boosting algorith from library *gbm* will be used:
+
+Gradient boosting constructs additive regression models by sequentially fitting a simple parameterized function (base learner) to current "pseudo"-residuals by least squares at each iteration. The pseudo-residuals are the gradient of the loss functional being minimized, with respect to the model values at each training data point evaluated at the current step. Accuracy and execution speed of gradient boosting can be substantially improved by incorporating randomization into the procedure. Specifically, at each iteration a subsample of the training data is drawn at random (without replacement) from the full training data set. This randomly selected subsample is then used in place of the full sample to fit the base learner and compute the model update for the current iteration. This randomized approach also increases robustness against overcapacity of the base learner. Stochastic Gradient Boosting algorithm from library *gbm* will be used:
+
 ```{r gbm-5-fold-train}
 file_name <- "./models//gbm.rds"
 if (RETRAIN) {
@@ -974,11 +1018,16 @@ if (RETRAIN) {
   fit_gbm <- readRDS(file_name)
 }
 ```
+
 ## eXtreme Gradient Boosting
+
 Extreme Gradient Boosting (XGBoost) is a specific implementation of the Gradient Boosting method which uses more accurate approximations to find the best tree model. It employs a number tricks that make it exceptionally successful, particularly with structured data. The most important are:
-- Computing second-order gradients, i.e. second partial derivatives of the loss function (similar to Newton’s method), which provides more information about the direction of gradients and how to get to the minimum of our loss function. While regular gradient boosting uses the loss function of our base model (e.g. decision tree) as a proxy for minimizing the error of the overall model, XGBoost uses the 2nd order derivative as an approximation.
-- Advanced regularization (L1 & L2), which improves model generalization.
+
+-   Computing second-order gradients, i.e. second partial derivatives of the loss function (similar to Newton's method), which provides more information about the direction of gradients and how to get to the minimum of our loss function. While regular gradient boosting uses the loss function of our base model (e.g. decision tree) as a proxy for minimizing the error of the overall model, XGBoost uses the 2nd order derivative as an approximation;
+-   Advanced regularization (L1 & L2), which improves model generalization.
+
 Library *xgboost* will be used for the model:
+
 ```{r xgbTree-5-fold-train}
 file_name <- "./models//xgbTree.rds"
 if (RETRAIN) {
@@ -1000,11 +1049,11 @@ if (RETRAIN) {
   fit_xgbTree <- readRDS(file_name)
 }
 ```
+
 ## Parallel Random Forest
-Random forest is a method for building models by combining decision trees or
-decision trees generated from bootstrap samples and random features. A common problem that
-often occurs when implementing random forest is long processing time because it uses a lot of
-data and build many tree models to form random trees because it uses single processor. Library *randomForest* contains implementation of random forest method with parallel computing which can improve computational time.
+
+Random forest is a method for building models by combining decision trees or decision trees generated from bootstrap samples and random features. A common problem that often occurs when implementing random forest is long processing time because it uses a lot of data and build many tree models to form random trees because it uses single processor. Library *randomForest* contains implementation of random forest method with parallel computing which can improve computational time.
+
 ```{r parRF-5-fold-train}
 file_name <- "./models//parRF.rds"
 if (RETRAIN) {
@@ -1026,10 +1075,11 @@ if (RETRAIN) {
   fit_parRF <- readRDS(file_name)
 }
 ```
+
 ## Neural Network
-Finally, we will try Artificial Neural Network (ANN) implementation. A neural network is a series of algorithms that endeavors to recognize underlying relationships in a set of data through a process that mimics the way the human brain operates.
-Neural networks are able to find non-linear dependencies in multidimensional data. Especially they are effective for images or sound recognition. Because the data in the current project is multidimensional, ANN may have some advantage.
-Library *nnet* will be used to train the model:
+
+Finally, we will try Artificial Neural Network (ANN) implementation. A neural network is a series of algorithms that endeavors to recognize underlying relationships in a set of data through a process that mimics the way the human brain operates. Neural networks are able to find non-linear dependencies in multidimensional data. Especially they are effective for images or sound recognition. Because the data in the current project is multidimensional, ANN may have some advantage. Library *nnet* will be used to train the model:
+
 ```{r nnet-5-fold-train}
 file_name <- "./models//nnet.rds"
 if (RETRAIN) {
@@ -1051,9 +1101,11 @@ if (RETRAIN) {
   fit_nnet <- readRDS(file_name)
 }
 ```
+
 ## Model comparison and selection
-To select a model which will be improved later on, we will look on models metrics and confusion matrices.
-First, make a table with model name, computational time (5-fold cross validation and default gridSearch for parameters) and different metrics. Models with highest Mean Balanced Accuracy from gridSearch will be compared:
+
+To select a model which will be improved later on, we will look on models metrics and confusion matrices. First, make a table with model name, computational time (5-fold cross validation and default gridSearch for parameters) and different metrics. Models with highest Mean Balanced Accuracy from gridSearch will be compared:
+
 ```{r results-5-fold, echo=FALSE}
 models <- c("kknn", "pda", "multinom", "gbm", "xgbTree", "parRF", "nnet")
 fits <- list(fit_kknn, fit_pda, fit_multinom, 
@@ -1077,17 +1129,22 @@ result_df[, 2:5] <- round(result_df[, 2:5], digits = 4)
 
 knitr::kable(result_df, caption = "Different models train results", row.names = FALSE, tidy=TRUE)
 ```
+
 We can see, that pda, multinom and xgbTree show the best balanced accuracy. Compare by kappa value, multinom and xgbTree are the leaders. But taking in account amount of tuning parameters and computational time, multinom looks the best one. To check models performance for specific classes, confusion matrices will be plotted for each model:
+
 ```{r all_conf_matr, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Confusion matrices", fig.align='center', fig.height= 5}
 # plot train confusion matrices
 lapply(models, function(model){
   plot_confusion(fits[[model]]$pred$obs, fits[[model]]$pred$pred, name = paste(model, "train"))
 })
 ```
-Looking on Figure 13 we see, that all models have difficulties to distinguish STANDING and SITTING classes, which was expected based on EDA. From confusion matrices we can conclude, that xgbTree and multinom are showing the least wrongly predicted classes. Taking into account results from Table 4, the Multinomial logistic regression will be used for further improvement.
+
+Looking on Figures 13-19, we see, that all models have difficulties to distinguish STANDING and SITTING classes, which was expected based on EDA. From confusion matrices we can conclude, that xgbTree and multinom are showing the least wrongly predicted classes. Taking into account results from Table 4, the Multinomial logistic regression will be used for further improvement.
+
 ## Multinomial logistic regression tuning
-Multinom has one tunable parameter: Weight Decay. It helps to avoid overfitting by penalize complexity of the model.
-Let's see, how mean balanced accuracy was changed during default decay gridSearch:
+
+Multinom has one tunable parameter: Weight Decay. It helps to avoid overfitting by penalize complexity of the model. Let's see, how mean balanced accuracy was changed during default decay gridSearch:
+
 ```{r multinom-default-grid-acc, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Multinom decay vs balanced accuracy", fig.align='center', fig.height= 5}
 fit_multinom$results %>% ggplot(aes(x = decay)) +
   geom_line(aes(y = Mean_Balanced_Accuracy), color = "blue") +
@@ -1095,19 +1152,24 @@ fit_multinom$results %>% ggplot(aes(x = decay)) +
   theme_bw() +
   theme(plot.title = element_text(size = 15))
 ```
-As we see, balanced accuracy increases, when decay is getting larger. During EDA, we saw that activity clusters are 
-intersecting with each other in low dimensions. To avoid overfitting, larger value of decay can be needed. We will try the following gridSearch:
+
+As we see, balanced accuracy increases, when decay is getting larger. During EDA, we saw that activity clusters are intersecting with each other in low dimensions. To avoid overfitting, larger value of decay can be needed. We will try the following gridSearch:
+
 ```{r multinom-grid}
 multinom_grid <- expand.grid(decay = c(0.1, 0.5, 1, 3, 5, 8, 10, 13, 15))
 ```
+
 Also, we will change training cross-validation method. It will be bootstrap, because now we will train only one model, and computational time has less priority compare to well-done multiple cross-validation:
+
 ```{r multinom-cross-val}
 control <- trainControl(method="boot", classProbs= TRUE, summaryFunction = multiClassSummary, 
                         savePredictions = "final",
                         search="grid",
                         verbose = PRINT_DEBUG)
 ```
+
 Train model to find the best decay:
+
 ```{r multinom-extended-grid-search}
 file_name <- "./models//multinom_expand_grid.rds"
 if (RETRAIN) {
@@ -1127,7 +1189,9 @@ if (RETRAIN) {
   fit_multinom_grid <- readRDS(file_name)
 }
 ```
+
 Plot balanced accuracy versus Weight decay:
+
 ```{r multinom-ext-grid-acc, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Multinom decay vs balanced accuracy", fig.align='center', fig.height= 5}
 fit_multinom_grid$results %>% ggplot(aes(x = decay)) +
   geom_line(aes(y = Mean_Balanced_Accuracy), color = "blue") +
@@ -1135,10 +1199,13 @@ fit_multinom_grid$results %>% ggplot(aes(x = decay)) +
   theme_bw() +
   theme(plot.title = element_text(size = 15))
 ```
+
 ```{r best-decay, warning=FALSE, include=FALSE, echo=FALSE}
 decay = fit_multinom_grid$bestTune$decay
 ```
+
 The best performance is achieved with decay value `r decay`. Let's train model with only this decay and increase maximum iterations number from default value 100 to 500:
+
 ```{r multinom_final_pca_100}
 multinomGrid_fin <-  expand.grid(decay = decay)
 control <- trainControl(method="boot", classProbs= TRUE, summaryFunction = multiClassSummary, 
@@ -1165,7 +1232,9 @@ if (RETRAIN) {
   fit_multinom_fin_100 <- readRDS(file_name)
 }
 ```
+
 Add result to the comparison table:
+
 ```{r results-final_pca_100, echo=FALSE}
 result_multinom <- data.frame("multinom_optimal_PCA100",
                      fit_multinom_fin_100$results$Mean_Balanced_Accuracy,
@@ -1183,11 +1252,15 @@ result_df <- rbind(result_df, result_multinom)
 
 knitr::kable(result_df, caption = "Different models train results", row.names = FALSE, tidy=TRUE)
 ```
+
 All metrics are improved, let's also look on the confusion matrix:
+
 ```{r all_conf_matr100, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Multinom PCA100 Confusion matrix", fig.align='center', fig.height= 5}
 plot_confusion(fit_multinom_fin_100$pred$obs, fit_multinom_fin_100$pred$pred, name = "Multinom PCA100 Confusion matrix")
 ```
+
 Looking on Figure , we see, that except expected difficulties between SITTING, STANDING and LAYING, LIE_TO_SIT and LIE_TO_STAND, and other classes inside one activity type, there is some uncertainties between STAND_TO_LIE and WALKING_UPSTAIRS. Remember, that 100 PC's explain only 95% of outcomes variability, when 200 PC's should be able to explain almost 100%. Let's train our model using 200 PC's:
+
 ```{r multinom_final_pca_200}
 # keep 200 features from df_pca
 df_pca_or <- as.data.frame(predict(pca, newdata = df[1:561]))
@@ -1212,7 +1285,9 @@ if (RETRAIN) {
   fit_multinom_fin_200 <- readRDS(file_name)
 }
 ```
+
 Add result to the comparison table:
+
 ```{r results-final_pca_200, echo=FALSE}
 result_multinom <- data.frame("multinom_optimal_PCA200",
                      fit_multinom_fin_200$results$Mean_Balanced_Accuracy,
@@ -1230,13 +1305,17 @@ result_df <- rbind(result_df, result_multinom)
 
 knitr::kable(result_df, caption = "Different models train results", row.names = FALSE, tidy=TRUE)
 ```
+
 Plot confusion matrix:
+
 ```{r all_conf_matr200, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Multinom PCA200 Confusion matrix", fig.align='center', fig.height= 5}
 plot_confusion(fit_multinom_fin_200$pred$obs, fit_multinom_fin_200$pred$pred, name = "Multinom PCA200 Confusion matrix")
 ```
+
 All metrics are slightly improved. Of course, computational time is also increased, as numbers of dimensions is getting higher. Looking on confusion matrix, we can see some improvement in class distinguishing.
 
 Finally, let's try to fit all features from dataset without PCA transformation, to check if some important information is hidden in higher dimensions:
+
 ```{r multinom_final_orig}
 file_name <- "./models//multinom_final_orig.rds"
 
@@ -1257,7 +1336,9 @@ if (RETRAIN) {
   fit_multinom_orig <- readRDS(file_name)
 }
 ```
+
 Add result to the comparison table:
+
 ```{r results-final-orig, echo=FALSE}
 result_multinom <- data.frame("multinom_optimal_orig",
                      fit_multinom_orig$results$Mean_Balanced_Accuracy,
@@ -1275,14 +1356,19 @@ result_df <- rbind(result_df, result_multinom)
 
 knitr::kable(result_df, caption = "Different models train results", row.names = FALSE, tidy=TRUE)
 ```
+
 and plot confusion matrix:
+
 ```{r all_conf_orig, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Multinom original features Confusion matrix", fig.align='center', fig.height= 5}
 plot_confusion(fit_multinom_orig$pred$obs, fit_multinom_orig$pred$pred, name = "Multinom original features Confusion matrix")
 ```
+
 Despite very long computational time, adding all features from the original dataset did not improve the metrics. Confusion matrix also doesn't show less errors in the neighboring activity classes. Therefore Multinominal logistic regression on 200 Principal component is chosen as final model.
 
 ## Final model function
+
 The following function will be used to make predictions:
+
 ```{r final-model}
 multinom_final_predict <- function(features_space){
   val_pca <- as.data.frame(predict(pca, newdata = features_space))
@@ -1291,15 +1377,26 @@ multinom_final_predict <- function(features_space){
 ```
 
 ## Summary
-In this chapter we tried seven different models to apply to the dataset. Multinomial logistic regression was selected for tuning. Different features spaces such as PCA-transformed with 100 PC's, PCA-tranformed with 200 PC's and original 561 features were tested. Finally, the model which use Principal Component Analisys first and Multinomial logistic regression with weight decay = 8 after was selected.
+
+-   In this chapter we tried seven different models to apply to the dataset.
+
+-   Multinomial logistic regression was selected for tuning.
+
+-   Different features spaces such as PCA-transformed with 100 PC's, PCA-transformed with 200 PC's and original 561 features were tested.
+
+-   Finally, the model which use Principal Component Analysis first and Multinomial logistic regression with weight decay = 8 after was selected.
 
 # Validation
+
 To see how our model will perform on real life data, the validation dataset was hold-out from the beginning of the project. *df_validation* was not used for EDA, PCA transformation, models comparison etc. These are completely unseen by our model data. First, predictions from validation dataset are computed:
+
 ```{r valid-prediction}
 truth <- df_validation$Activity
 pred <- multinom_final_predict(df_validation[1:561]) 
 ```
+
 Now, we can check final model metrics on the validation dataset and plot confusion matrix:
+
 ```{r valid-metrics}
 xtab <- table(pred, truth)
 
@@ -1323,14 +1420,19 @@ knitr::kable(result_df, caption = "Different models train and final validation r
 ```{r valid_conf_mat, echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "Final model validation confusion matrix", fig.align='center', fig.height= 5}
 plot_confusion(df_validation$Activity, multinom_final_predict(df_validation[1:561]), name = "Final model validation confusion matrix" )
 ```
+
 Looking on validation metrics and confusion matrix, we can conclude, that model is not overfitted and, generally, have good performance. But distinguishing between some classes (especially static positions) is not completely reliable.
 
 # Conclusion
-In the capstone project I examine HAPT dataset and build a multyclass classification model which able to predict different activities and postural transitions with average accuracy 91.5%. Some classes are distinguished from each other with very high reliability while some of them can be mixed with each other. During EDA it was concluded, that it is a nature of the data: smartphone sensors generate almost identical information when person is standing still, sitting or laying. Although, some potential improvements can be done:
-- Consider more complicated algorithms with more tunable parameters, e.g. neural networks, which can find subtitle, non-linear difference in high dimensions;
-- Convert multiclass classification task to number of binary classification tasks (1-vs-all or each-vs-each) and then use different models with different parameters for each of binary classification;
-- collect more data using more modern devices (remember, that original dataset is from 2012): smartphones and smartwatches should have better sensors since then;
-- use data with timestamps, and then previous activity can be used as one of predictors for current activity.
+
+In the capstone project I examined HAPT dataset and build a multyclass classification model which able to predict different activities and postural transitions with average accuracy 91.5%. Some classes are distinguished from each other with very high reliability while some of them can be mixed with each other. During EDA it was concluded, that it is a nature of the data: smartphone sensors generate almost identical information when person is standing still, sitting or laying.
+
+Although, some potential improvements can be done:
+
+-   Consider more complicated algorithms with more tunable parameters, e.g. neural networks, which can find subtitle, non-linear difference in high dimensions;
+-   Convert multiclass classification task to number of binary classification tasks (1-vs-all or each-vs-each) and then use different models with different parameters for each of binary classifications;
+-   collect more data using more modern devices (remember, that original dataset is from 2012): smartphones and smartwatches should have better sensors since then;
+-   use data with timestamps, and then previous activity can be used as one of predictors for current activity.
 
 # Literature
 
@@ -1348,4 +1450,4 @@ In the capstone project I examine HAPT dataset and build a multyclass classifica
 12. [Tianqi Chen, Tong He. xgboost: eXtreme Gradient Boosting (2020)](https://mran.microsoft.com/snapshot/2020-07-15/web/packages/xgboost/vignettes/xgboost.pdf)
 13. [N Azizah et al 2019 J. Phys.: Conf. Ser. 1280 022028. Implementation of random forest algorithm with parallel computing in R](https://iopscience.iop.org/article/10.1088/1742-6596/1280/2/022028/pdf)
 14. [Margherita Grandini, Enrico Bagli, Giorgio Visani. Metrics for multi-class classification. (2020)](https://arxiv.org/pdf/2008.05756.pdf)
-15. [Xavier Robin, Natacha Turck, Alexandre Hainard, Natalia Tiberti, Frédérique Lisacek, Jean-Charles Sanchez and Markus Müller (2011). pROC: an open-source package for R and S+ to analyze and compare ROC curves. BMC Bioinformatics, 12, p. 77.  DOI:  10.1186/1471-2105-12-77](http://www.biomedcentral.com/1471-2105/12/77/)
+15. [Xavier Robin, Natacha Turck, Alexandre Hainard, Natalia Tiberti, Frédérique Lisacek, Jean-Charles Sanchez and Markus Müller (2011). pROC: an open-source package for R and S+ to analyze and compare ROC curves. BMC Bioinformatics, 12, p. 77. DOI: 10.1186/1471-2105-12-77](http://www.biomedcentral.com/1471-2105/12/77/)
