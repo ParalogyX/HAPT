@@ -53,6 +53,7 @@ if(!require(tidyverse)) install.packages("tidyverse")
 if(!require(gridExtra)) install.packages("gridExtra")
 if(!require(grid)) install.packages("grid")
 if(!require(conflicted)) install.packages("conflicted")
+if(!require(plyr)) install.packages("plyr")
 if(!require(UBL)) install.packages("UBL")
 
 
