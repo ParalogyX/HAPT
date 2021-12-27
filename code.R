@@ -75,8 +75,10 @@ setwd(dirname(getActiveDocumentContext()$path))
 
 
 # function select is masked in other package, but we need only this one
+conflict_prefer("mutate", "dplyr")
 conflict_prefer("select", "dplyr")
 conflict_prefer("filter", "dplyr")
+conflict_prefer("arrange", "dplyr")
 
 # Program controls
 RETRAIN <- F       # TRUE: models will be retrained; FALSE: trained models will be loaded from files
