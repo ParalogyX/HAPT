@@ -2,6 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
-data
-models
 .RDataTmp
+models/multinom_final_orig.rds
+models/multinom_final_pca_200.rds
