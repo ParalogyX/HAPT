@@ -29,6 +29,7 @@ if(!require(tidyverse)) install.packages("tidyverse")
 if(!require(gridExtra)) install.packages("gridExtra")
 if(!require(grid)) install.packages("grid")
 if(!require(conflicted)) install.packages("conflicted")
+if(!require(plyr)) install.packages("plyr")
 if(!require(UBL)) install.packages("UBL")
 
 library(formatR)
@@ -40,9 +41,11 @@ library(grid)
 library(conflicted)
 library(UBL)
 
-# functions select and filter are masked in other package, but we need only this one
+# functions are masked in other package, but we need only this one
+conflict_prefer("mutate", "dplyr")
 conflict_prefer("select", "dplyr")
 conflict_prefer("filter", "dplyr")
+conflict_prefer("arrange", "dplyr")
 
 ```
 
@@ -67,9 +70,6 @@ if (!file.exists("./report//preamble.tex")) {
   download.file("https://raw.githubusercontent.com/ParalogyX/HAPT/master/report/preamble.tex", "./report//preamble.tex")
 }
 
-# functions select and filter are masked in other package, but we need only this one
-conflict_prefer("select", "dplyr")
-conflict_prefer("filter", "dplyr")
 
 # Program controls
 RETRAIN <- F       # TRUE: models will be retrained; FALSE: trained models will be loaded from files
