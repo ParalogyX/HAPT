@@ -74,7 +74,7 @@ library(UBL)
 setwd(dirname(getActiveDocumentContext()$path))
 
 
-# function select is masked in other package, but we need only this one
+# functions are masked in other package, but we need only this one
 conflict_prefer("mutate", "dplyr")
 conflict_prefer("select", "dplyr")
 conflict_prefer("filter", "dplyr")
